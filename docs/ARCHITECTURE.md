@@ -147,3 +147,12 @@ backwards.
   and inspectable, but a hypothesis whose vocabulary does not match a section's key
   elements will land in the summary sections rather than the specific one.
 * **Offline mode is machinery, not judgment.** See the README.
+* **Python 3.14 cannot run the Critic.** CrewAI declares `>=3.10,<3.14`, so
+  `requires-python` is pinned to match. LangChain, langchain-anthropic, Chroma, and MCP
+  all run on 3.14; only the CrewAI persona does not. The MCP layer targets `mcp>=2`,
+  where `FastMCP` was renamed `MCPServer`.
+* **What has and has not been executed.** The offline pipeline, both indexes, the
+  guardrails, and the routing rules are covered by the test suite and were run end to
+  end on the demo engagement. The model-backed paths — the LCEL Generator, the CrewAI
+  Critic, the Synthesizer's headline pass — are written against the documented APIs but
+  have not been run against a live model here.

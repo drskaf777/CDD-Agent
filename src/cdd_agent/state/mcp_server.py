@@ -19,11 +19,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from cdd_agent.state.store import StateStore
 
-mcp = FastMCP("cdd-state")
+# mcp 2.x renamed FastMCP to MCPServer; pin mcp<2 if you need the v1 name.
+mcp = MCPServer("cdd-state")
 _store = StateStore()
 
 

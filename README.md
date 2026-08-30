@@ -54,6 +54,13 @@ Three design decisions carry most of the weight, and each has a failure mode beh
 
 ## Install
 
+**Python 3.11–3.13.** The upper bound is CrewAI's, not this project's: CrewAI declares
+`>=3.10,<3.14` and publishes no wheels for 3.14, so the Critic persona cannot be
+installed on a 3.14 interpreter. Everything else in the stack — LangChain,
+langchain-anthropic, Chroma, MCP — runs fine on 3.14, and the pipeline itself runs there
+in offline mode. If `python --version` reports 3.14, install a 3.13 interpreter before
+creating the virtualenv, or the `pip install` below will refuse.
+
 ```bash
 python -m venv .venv && .venv/Scripts/activate   # Windows; use bin/activate elsewhere
 pip install -e ".[dev]"
