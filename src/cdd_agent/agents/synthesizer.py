@@ -107,19 +107,28 @@ class Synthesizer(Agent):
                 ]
             )
 
-        claims = [
-            Claim(
-                text=f"Lead hypothesis: {tree.root_thesis}",
-                tag=_overall_tag(tree, matrix),
-                citations=_all_citations(tree, matrix)[:3],
-                hypothesis_id=None,
-            )
-        ] if _all_citations(tree, matrix) else [
-            Claim(
-                text=f"Lead hypothesis: {tree.root_thesis} - no evidence gathered yet",
-                tag=ConfidenceTag.NO_DATA,
-            )
-        ]
+        all_citations = sorted(
+            _all_citations(tree, matrix),
+            key=lambda c: not c.source_kind.is_independent,
+        )
+        if all_citations:
+            claims = [
+                Claim(
+                    text=f"Lead hypothesis: {tree.root_thesis}",
+                    tag=_overall_tag(tree, matrix),
+                    citations=all_citations[:3],
+                    management_data_only=all(
+                        c.source_kind.is_management_supplied for c in all_citations
+                    ),
+                )
+            ]
+        else:
+            claims = [
+                Claim(
+                    text=f"Lead hypothesis: {tree.root_thesis} - no evidence gathered yet",
+                    tag=ConfidenceTag.NO_DATA,
+                )
+            ]
 
         return Slide(
             section_number=section.number,
@@ -225,7 +234,13 @@ class Synthesizer(Agent):
                 )
                 continue
             management_only = all(i.source_kind.is_management_supplied for i in items)
-            citations = [c for i in items for c in i.citations][:4]
+            # Independent citations lead. A Confirmed rating is only reachable with
+            # independent triangulation, so the citations shown have to include it -
+            # otherwise the page reads as management-sourced when it is not.
+            citations = sorted(
+                (c for i in items for c in i.citations),
+                key=lambda c: not c.source_kind.is_independent,
+            )[:4]
             claims.append(
                 Claim(
                     text=f"{h.statement} - {_evidence_gloss(items)}",

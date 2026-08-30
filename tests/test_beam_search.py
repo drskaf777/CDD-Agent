@@ -43,7 +43,12 @@ def _branch(branch_id: str, avg: float, four_q: bool = True) -> HypothesisTree:
         four_question_alignment=avg,
         sub_sector_fit=avg,
         testability=avg,
-        criterion_notes={"sub_sector_fit": "does not test NRR"},
+        criterion_notes={
+            "buyer_criteria_coverage": "does not test NRR",
+            "four_question_alignment": "does not test NRR",
+            "sub_sector_fit": "does not test NRR",
+            "testability": "does not test NRR",
+        },
     )
     return tree
 

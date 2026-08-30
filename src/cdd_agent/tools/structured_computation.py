@@ -17,7 +17,7 @@ from typing import Any, Iterable, Optional, Sequence
 
 import pandas as pd
 
-from cdd_agent.retrieval.ingestion import StructuredTable
+from cdd_agent.retrieval.ingestion import StructuredTable, parse_number
 from cdd_agent.schemas.common import Citation, SourceKind, Tier
 
 
@@ -96,7 +96,7 @@ class StructuredComputationTool:
     def aggregate(self, table: str, column: str, how: str = "sum") -> ComputationResult:
         df = self.frame(table)
         _require(df, [column], table)
-        series = pd.to_numeric(df[column], errors="coerce").dropna()
+        series = _numeric(df[column]).dropna()
         if series.empty:
             raise ComputationError(f"column {column!r} in {table!r} holds no numeric values")
         value = float(getattr(series, how)())
@@ -113,7 +113,7 @@ class StructuredComputationTool:
         df = self.frame(table)
         _require(df, [customer_column, revenue_column], table)
         df = df.copy()
-        df[revenue_column] = pd.to_numeric(df[revenue_column], errors="coerce")
+        df[revenue_column] = _numeric(df[revenue_column])
         grouped = (
             df.groupby(customer_column)[revenue_column].sum().sort_values(ascending=False)
         )
@@ -129,7 +129,8 @@ class StructuredComputationTool:
             for n in top_n
             if n <= len(grouped)
         ]
-        top5_share = next((r["share_of_total"] for r in rows if r["bucket"] == "top 5"), None)
+        top5 = float(grouped.head(5).sum()) if len(grouped) >= 5 else None
+        top5_share = (top5 / total) if top5 is not None else None
         return ComputationResult(
             name="customer concentration",
             value=top5_share,
@@ -161,11 +162,11 @@ class StructuredComputationTool:
         _require(df, cols, table)
         df = df.sort_values(period_column).copy()
         for c in cols[1:]:
-            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+            df[c] = _numeric(df[c]).fillna(0.0)
 
         opening = 0.0
         if opening_column and opening_column in df.columns:
-            opening = float(pd.to_numeric(df[opening_column], errors="coerce").iloc[0] or 0.0)
+            opening = float(_numeric(df[opening_column]).iloc[0] or 0.0)
 
         rows: list[dict[str, Any]] = []
         balance = opening
@@ -213,7 +214,7 @@ class StructuredComputationTool:
         df = self.frame(table)
         _require(df, [cohort_column, period_column, value_column], table)
         df = df.copy()
-        df[value_column] = pd.to_numeric(df[value_column], errors="coerce")
+        df[value_column] = _numeric(df[value_column])
         rows: list[dict[str, Any]] = []
         for cohort, group in df.groupby(cohort_column):
             group = group.sort_values(period_column)
@@ -280,6 +281,12 @@ class StructuredComputationTool:
             citation=citation,
             note=f"base {base_value:,.0f}",
         )
+
+
+def _numeric(series: pd.Series) -> pd.Series:
+    """Coerce a measure column, handling currency symbols, thousands separators,
+    percentages, and parenthesised negatives."""
+    return pd.to_numeric(series.map(parse_number), errors="coerce")
 
 
 def _require(df: pd.DataFrame, columns: Sequence[str], table: str) -> None:

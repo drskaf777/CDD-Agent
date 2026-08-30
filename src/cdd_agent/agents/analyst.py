@@ -189,16 +189,17 @@ class Analyst(Agent):
             asked = {q for s in report.steps if s.hypothesis_id == target.id for q in [s.action]}
             query = next((q for q in queries if q not in asked), None)
             if query is None:
-                # Every planned query for this hypothesis has been tried. Log a dated
-                # gap rather than looping: a gap the deal team can act on is a better
-                # output than another near-identical retrieval.
+                # Every planned query for this hypothesis has been tried. It leaves the
+                # queue either way; it only earns a gap if nothing was found, since a
+                # gap against evidence the deal team already supplied is noise.
                 exhausted.add(target.id)
-                gap = self._log_gap(target, matrix)
-                report.gaps_logged.append(gap)
-                report.steps.append(
-                    LoopStep(step, target.id, thought, "log_information_gap",
-                             gap.request, ConfidenceTag.NO_DATA)
-                )
+                if rating is ConfidenceTag.NO_DATA:
+                    gap = self._log_gap(target, matrix)
+                    report.gaps_logged.append(gap)
+                    report.steps.append(
+                        LoopStep(step, target.id, thought, "log_information_gap",
+                                 gap.request, ConfidenceTag.NO_DATA)
+                    )
                 continue
 
             # --- Action ---

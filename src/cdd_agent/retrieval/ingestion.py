@@ -21,11 +21,13 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from cdd_agent.retrieval.chunking import SourceDocument, chunk_document
-from cdd_agent.retrieval.indexes import DataRoomIndex
 from cdd_agent.schemas.common import Tier
+
+if TYPE_CHECKING:
+    from cdd_agent.retrieval.indexes import DataRoomIndex
 
 UNSTRUCTURED_SUFFIXES = {".txt", ".md", ".text"}
 STRUCTURED_SUFFIXES = {".csv", ".tsv"}
@@ -64,14 +66,14 @@ class StructuredTable:
     rows: list[dict[str, str]]
     document_date: Optional[_dt.date] = None
 
-    def to_records(self) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        for row in self.rows:
-            rec: dict[str, Any] = {}
-            for k, v in row.items():
-                rec[k] = _maybe_number(v)
-            out.append(rec)
-        return out
+    def to_records(self) -> list[dict[str, str]]:
+        """Rows as read, without numeric coercion.
+
+        Coercion is deliberately left to the computation tool, which knows which
+        column is a measure. Coercing here turned label columns into numbers - a
+        cohort of "2024" became 2024.0 and stopped matching its own label.
+        """
+        return [dict(row) for row in self.rows]
 
 
 @dataclass
@@ -160,9 +162,11 @@ def ingest_directory(
     engagement_id: str,
     directory: Path | str,
     *,
-    index: Optional[DataRoomIndex] = None,
+    index: Optional["DataRoomIndex"] = None,
 ) -> tuple[IngestionReport, list[StructuredTable]]:
     """Ingest a data-room folder into the engagement-scoped index."""
+    from cdd_agent.retrieval.indexes import DataRoomIndex
+
     directory = Path(directory)
     index = index or DataRoomIndex(engagement_id)
     report = IngestionReport(engagement_id=engagement_id)
@@ -226,7 +230,9 @@ def ingest_knowledge_base(docs: Iterable[SourceDocument], *, topic: str = "refer
     return total
 
 
-def _maybe_number(value: str) -> Any:
+def parse_number(value: Any) -> Any:
+    if value is None:
+        return None
     text = str(value).strip().replace(",", "")
     if not text:
         return None

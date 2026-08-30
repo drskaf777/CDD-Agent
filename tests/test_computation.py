@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cdd_agent.retrieval.ingestion import StructuredTable
+from cdd_agent.retrieval.ingestion import StructuredTable, parse_number
 from cdd_agent.tools.structured_computation import (
     ComputationError,
     StructuredComputationTool,
@@ -85,6 +85,7 @@ def test_cohort_retention_is_relative_to_each_cohort_base():
         "cohorts", cohort_column="cohort", period_column="period", value_column="net_arr"
     )
     latest = {r["cohort"]: r["retention"] for r in result.table if r["period"] == "1"}
+    assert set(latest) == {"2024", "2025"}, "cohort labels must survive as labels"
     assert latest["2024"] == pytest.approx(1.2)
     assert latest["2025"] == pytest.approx(0.9)
 
@@ -102,13 +103,19 @@ def test_unknown_table_raises():
 
 
 def test_currency_and_percent_strings_are_parsed():
-    rows = [{"metric": "margin", "value": "78%"}, {"metric": "arr", "value": "$1,200"}]
+    assert parse_number("78%") == pytest.approx(0.78)
+    assert parse_number("$1,200") == pytest.approx(1200.0)
+    assert parse_number("(450)") == pytest.approx(-450.0)
+    assert parse_number("not a number") == "not a number"
+
+
+def test_label_columns_are_not_coerced_to_numbers():
+    """A cohort of "2024" is a label. Coercing it to 2024.0 breaks its own grouping."""
+    rows = [{"cohort": "2024", "net_arr": "100"}]
     table = StructuredTable(
-        source_file="mixed.csv", name="mixed", columns=["metric", "value"], rows=rows
+        source_file="c.csv", name="c", columns=["cohort", "net_arr"], rows=rows
     )
-    records = table.to_records()
-    assert records[0]["value"] == pytest.approx(0.78)
-    assert records[1]["value"] == pytest.approx(1200.0)
+    assert table.to_records()[0]["cohort"] == "2024"
 
 
 def test_sensitivity_grid_covers_both_drivers():

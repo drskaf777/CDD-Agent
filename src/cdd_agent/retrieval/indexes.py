@@ -21,9 +21,6 @@ import datetime as _dt
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional, Sequence
 
-import chromadb
-from chromadb.config import Settings as ChromaSettings
-
 from cdd_agent.config import get_settings
 from cdd_agent.retrieval.chunking import Chunk
 from cdd_agent.retrieval.embeddings import get_embedding_function
@@ -89,6 +86,12 @@ class _BaseIndex:
     source_kind: SourceKind = SourceKind.DATA_ROOM
 
     def __init__(self, collection_name: str) -> None:
+        # Imported here rather than at module scope so the package stays importable
+        # without a vector store installed - the computation and schema layers do not
+        # need one, and neither do most of the tests.
+        import chromadb
+        from chromadb.config import Settings as ChromaSettings
+
         settings = get_settings()
         settings.ensure_dirs()
         self._client = chromadb.PersistentClient(
