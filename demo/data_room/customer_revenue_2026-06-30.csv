@@ -1,0 +1,21 @@
+customer,segment,region,arr
+Northwind Manufacturing,enterprise,US,4820000
+Contoso Health,enterprise,US,3910000
+Fabrikam Financial,enterprise,UK,3140000
+Tailspin Logistics,enterprise,US,2260000
+Litware Retail,mid-market,DACH,1810000
+Adventure Works,mid-market,US,1420000
+Proseware Media,mid-market,US,1180000
+Wingtip Legal,mid-market,UK,960000
+Woodgrove Bank,enterprise,UK,910000
+Coho Vineyards,mid-market,US,740000
+Fourth Coffee,mid-market,US,690000
+Graphic Design Inc,mid-market,DACH,610000
+Humongous Insurance,enterprise,US,580000
+Lucerne Publishing,mid-market,UK,540000
+Margies Travel,mid-market,US,470000
+Trey Research,mid-market,US,430000
+Alpine Ski House,mid-market,DACH,390000
+Blue Yonder Airlines,enterprise,US,360000
+City Power and Light,mid-market,US,330000
+Consolidated Messenger,mid-market,UK,310000

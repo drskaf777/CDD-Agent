@@ -1,0 +1,26 @@
+Independent expert call - cloud workload protection buyer, mid-market CISO
+Respondent recruited independently. Not a customer reference supplied by management.
+Date: 2026-06-01.
+
+Q: How do you evaluate workload protection vendors today?
+A: Two years ago we would have bought a point solution. Now the platform vendors bundle
+something adequate with what we already pay for. The bar for a standalone product has
+gone up a lot. Market demand is still growing, but the share available to point
+solutions is not growing with it.
+
+Q: Is that displacing incumbents at renewal?
+A: Not immediately. Switching is painful and our team knows the tooling. But it caps
+what we will pay. When our renewal came up we pushed hard on price and got a
+double-digit reduction. I would expect that to be common across the segment.
+
+Q: What about identity protection specifically - would you buy it from your workload
+protection vendor?
+A: Possibly, but identity is a crowded category with entrenched vendors. Our identity
+stack is already committed for three years. A workload vendor would have to be
+meaningfully cheaper to get us to move, and we would not consolidate just for
+convenience. An attach rate above thirty percent across a mid-market base would surprise
+me.
+
+Q: How would you rate product quality?
+A: Good detection, noisy alerts. Support response times slipped last year. Nothing that
+would make us leave on its own, but it is a factor at renewal.

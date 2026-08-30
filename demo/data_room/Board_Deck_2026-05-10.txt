@@ -1,0 +1,33 @@
+Sentinel Secure Ltd - Board Deck - May 2026
+
+Slide 1: Business Review Q1 2026
+Net revenue retention was 118% for the trailing twelve months. Gross revenue retention
+was 91%. ARR closed the quarter at $48.2m, up from $39.4m a year earlier. Management
+regards the retention figure as sustainable through the plan period.
+
+Slide 2: Customer Base
+We ended the quarter with 412 customers. The top 5 customers represent 31% of ARR and
+the top 20 represent 54%. Concentration has risen from 26% two years ago as the
+enterprise segment has grown faster than mid-market. Logo churn was 9% for the year.
+
+Slide 3: Growth Drivers
+Growth is driven by seat expansion in existing accounts and by new logo acquisition in
+the mid-market segment. Blended CAC payback is 19 months, lengthening from 15 months in
+2024 as competition for mid-market accounts has intensified. Gross margin is 78%,
+down 200bps year on year as support headcount was added.
+
+Slide 4: Product and Roadmap
+The identity-protection module is in limited availability with 11 design-partner
+accounts. General availability is planned for Q4 2026. Attach rate among design partners
+is 64%, though these accounts were selected for fit and are not a representative sample
+of the installed base.
+
+Slide 5: Market
+Management estimates the addressable market for cloud workload protection in our served
+segments at $6.1bn, growing at 21% annually. This estimate is derived from a 2024
+analyst report scaled forward; it has not been rebuilt bottom-up from account counts.
+
+Slide 6: Risks
+Two of our five largest accounts are up for renewal in FY27. Pricing pressure from
+platform vendors bundling workload protection is increasing in the mid-market. Two
+senior engineers who own the detection pipeline are not on retention agreements.
