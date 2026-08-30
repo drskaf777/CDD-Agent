@@ -73,8 +73,11 @@ def _version_group(source_file: str) -> str:
     "MSA_FINAL.pdf" compete rather than both being retrievable as live sources.
     """
     stem = re.sub(r"\.[A-Za-z0-9]{1,5}$", "", source_file)
+    # A lookahead rather than \b: version markers are usually underscore-separated,
+    # and \b never fires between "v2" and "_" because underscore is a word character.
     stem = re.sub(
-        r"[ _-]*(v\d+(\.\d+)?|draft|final|clean|executed|rev\d*|copy|\(\d+\))\b",
+        r"[ _-]*(v\d+(?:\.\d+)?|draft|final|clean|executed|rev\d*|copy|\(\d+\))"
+        r"(?=[ _\-.]|$)",
         "",
         stem,
         flags=re.IGNORECASE,
@@ -224,14 +227,16 @@ def _tail_for_overlap(buffer: list[str], ratio: float) -> list[str]:
     acc = 0
     for unit in reversed(buffer):
         t = estimate_tokens(unit)
-        if acc and acc + t > budget:
+        # Strictly under budget: carrying a unit larger than the overlap allowance
+        # would push the next chunk past chunk_max_tokens, which is what the band is for.
+        if acc + t > budget:
             break
         tail.insert(0, unit)
         acc += t
         if acc >= budget:
             break
     # Never carry the entire buffer forward - that would loop.
-    return tail if len(tail) < len(buffer) else tail[-1:] if tail else []
+    return tail if len(tail) < len(buffer) else []
 
 
 def _locator(kind: str, index: int, first_unit: str) -> str:

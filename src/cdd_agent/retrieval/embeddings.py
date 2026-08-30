@@ -24,7 +24,9 @@ _HASH_DIM = 256
 class HashingEmbeddingFunction:
     """Deterministic bag-of-words hashing embedder, L2-normalised.
 
-    Chroma's EmbeddingFunction protocol: callable taking a list of strings.
+    Implements both halves of Chroma's embedding-function protocol: the legacy
+    callable form and the newer `embed_documents` / `embed_query` pair, so it keeps
+    working across Chroma versions rather than failing at query time.
     """
 
     def __init__(self, dim: int = _HASH_DIM) -> None:
@@ -34,8 +36,25 @@ class HashingEmbeddingFunction:
     def name() -> str:
         return "cdd-hashing"
 
+    @staticmethod
+    def is_legacy() -> bool:
+        return False
+
+    def get_config(self) -> dict[str, int]:
+        return {"dim": self.dim}
+
+    @staticmethod
+    def build_from_config(config: dict[str, int]) -> "HashingEmbeddingFunction":
+        return HashingEmbeddingFunction(dim=int(config.get("dim", _HASH_DIM)))
+
     def __call__(self, input: Sequence[str]) -> list[list[float]]:  # noqa: A002
-        return [self._embed(t) for t in input]
+        return [self._embed(t) for t in _as_sequence(input)]
+
+    def embed_documents(self, input: Sequence[str]) -> list[list[float]]:  # noqa: A002
+        return self(input)
+
+    def embed_query(self, input: Sequence[str] | str) -> list[list[float]]:  # noqa: A002
+        return self(input)
 
     def _embed(self, text: str) -> list[float]:
         vec = [0.0] * self.dim
@@ -49,6 +68,10 @@ class HashingEmbeddingFunction:
         if norm == 0:
             return [0.0] * self.dim
         return [v / norm for v in vec]
+
+
+def _as_sequence(value: Sequence[str] | str) -> Sequence[str]:
+    return [value] if isinstance(value, str) else value
 
 
 def _normalise(text: str) -> str:

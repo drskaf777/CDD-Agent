@@ -265,6 +265,11 @@ class Synthesizer(Agent):
                         [element, _element_status(element, claims)]
                         for element in section.key_elements
                     ],
+                    note=(
+                        "Status is the confidence tag of the claim covering that "
+                        "element. No Data means the current evidence base says nothing "
+                        "about it - which is the finding, not a formatting gap."
+                    ),
                 )
             ],
         )

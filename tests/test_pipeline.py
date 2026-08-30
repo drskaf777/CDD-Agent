@@ -71,6 +71,30 @@ def test_evidence_loop_grounds_claims_and_logs_dated_gaps(context, tree):
         assert gap.request and "more data" not in gap.request.lower()
 
 
+def test_data_room_evidence_is_never_independent_even_when_it_says_it_is(context, tree):
+    """The demo data room contains a transcript headed "recruited independently".
+
+    It is still management-supplied evidence: it arrived in the seller's data room.
+    Management-curated reference calls producing flattering satisfaction data is the
+    exact bias the outside-in standard exists to catch, so independence is a property
+    of how evidence was *sourced*, not of what the document claims about itself. Only
+    the primary-research tool can produce independent evidence.
+    """
+    ingest_directory(context.engagement_id, DEMO / "data_room")
+    matrix, _ = Analyst(context).run_evidence_loop(tree)
+    assert matrix.items, "expected the loop to retrieve something"
+    assert not any(i.is_independent for i in matrix.items)
+    assert not any(matrix.triangulated(h.id) for h in tree.tier_1())
+
+
+def test_auditor_does_not_list_one_finding_as_several_risks(context, tree):
+    ingest_directory(context.engagement_id, DEMO / "data_room")
+    matrix, _ = Analyst(context).run_evidence_loop(tree)
+    register, _ = RiskAuditor(context).audit(tree, matrix)
+    seen = [(r.category, r.description) for r in register.risks]
+    assert len(seen) == len(set(seen))
+
+
 def test_auditor_reports_taxonomy_coverage(context, tree):
     ingest_directory(context.engagement_id, DEMO / "data_room")
     matrix, _ = Analyst(context).run_evidence_loop(tree)

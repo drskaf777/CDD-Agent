@@ -158,7 +158,7 @@ class RiskAuditor(Agent):
                     register,
                     report,
                     category,
-                    f"{hits[0].description} - flagged by {item.id} on {item.hypothesis_id}",
+                    hits[0].description,
                     severity=severity,
                     likelihood=3 if item.tag is ConfidenceTag.CONTRADICTED else 2,
                     hypothesis_ids=[item.hypothesis_id],
@@ -264,7 +264,27 @@ class RiskAuditor(Agent):
         evidence_ids: Optional[list[str]] = None,
         management_data_only: bool = False,
     ) -> None:
-        if any(r.description == description for r in register.risks):
+        # One screen firing on three pieces of evidence is one risk with three
+        # supporting items, not three risks. A register that lists the same finding
+        # repeatedly is worse than useless at the top of a severity ranking.
+        existing = next(
+            (r for r in register.risks
+             if r.category is category and r.description == description),
+            None,
+        )
+        if existing is not None:
+            for hid in hypothesis_ids or []:
+                if hid not in existing.hypothesis_ids:
+                    existing.hypothesis_ids.append(hid)
+            for eid in evidence_ids or []:
+                if eid not in existing.evidence_ids:
+                    existing.evidence_ids.append(eid)
+            existing.severity = max(existing.severity, severity)
+            existing.likelihood = max(existing.likelihood, likelihood)
+            # The flag only survives if *every* supporting item is management-supplied.
+            existing.management_data_only = (
+                existing.management_data_only and management_data_only
+            )
             return
         self._risk_counter += 1
         risk = RiskItem(

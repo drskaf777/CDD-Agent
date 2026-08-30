@@ -174,7 +174,8 @@ class Analyst(Agent):
                     if not exhausted
                     else (
                         "every Tier-1 hypothesis is either rated or has exhausted its "
-                        f"planned queries ({len(exhausted)} left with a logged gap)"
+                        f"planned queries ({len(exhausted)} exhausted, "
+                        f"{len(report.gaps_logged)} of those with no evidence at all)"
                     )
                 )
                 break

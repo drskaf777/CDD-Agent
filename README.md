@@ -71,9 +71,17 @@ Default model is `claude-opus-5`; override with `CDD_MODEL`.
 
 Project Sentinel is a worked B2B cybersecurity SaaS deal with a cross-sell thesis and a
 sponsor buyer — the illustrative case from Section V.B of the design specification. Its
-data room contains a deliberate trap: a superseded board deck reporting 124% NRR
-alongside the current one reporting 118%, and a contract extract showing that 25% of ARR
-sits in agreements that step down at renewal.
+data room contains three deliberate traps:
+
+* A superseded board deck reporting 124% NRR sits alongside the current one reporting
+  118%. Retrieval must never cite the old one.
+* A contract extract shows 25% of ARR in agreements that step down at renewal — the
+  detail the blended NRR figure obscures.
+* An expert transcript headed *"recruited independently"* sits in the seller's data
+  room. The agent still treats it as management-supplied, so nothing in the demo reaches
+  a Confirmed rating. Independence is a property of how evidence was sourced, not of
+  what a document says about itself, and a curated reference call is the exact bias the
+  outside-in standard exists to catch.
 
 ```bash
 cdd seed-kb
