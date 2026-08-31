@@ -1,0 +1,76 @@
+{
+  "created_by": "Intake Agent",
+  "engagement_id": "project-sentinel",
+  "target": {
+    "legal_name": "Sentinel Secure Ltd",
+    "trading_names": [
+      "Sentinel"
+    ],
+    "website": "sentinelsecure.example",
+    "headquarters": "Boston",
+    "revenue_geographies": [
+      "US",
+      "UK",
+      "DACH"
+    ],
+    "transaction_structure": "majority buyout",
+    "publicly_traded": false,
+    "deal_stage": "signed LOI",
+    "ic_date": "2026-10-15"
+  },
+  "sector": {
+    "sub_sector": "B2B cybersecurity SaaS (cloud workload protection)",
+    "business_model": "subscription/SaaS",
+    "revenue_is_recurring": true,
+    "customer_type": "B2B",
+    "company_stage": "scaled"
+  },
+  "thesis": {
+    "one_sentence_thesis": "Acquire Sentinel as a platform and cross-sell a new identity-protection product line into the existing installed base",
+    "critical_model_assumptions": [
+      "NRR stays at or above 115% through the hold period",
+      "At least 30% of the installed base attaches the new line within 24 months"
+    ],
+    "base_case_organic_growth": "22%",
+    "base_case_margin_expansion": "600bps",
+    "hold_period_years": 5.0,
+    "exit_route": "strategic or sponsor-to-sponsor"
+  },
+  "buyer": {
+    "buyer_type": "financial sponsor",
+    "platform_or_bolt_on": "new platform investment",
+    "strategic_core_business": null,
+    "strategic_relationship": null,
+    "decision_criteria": [
+      "cash-flow stability",
+      "growth optionality",
+      "proprietary technology"
+    ]
+  },
+  "process": {
+    "process_type": "competitive auction",
+    "known_bidders": [],
+    "prior_diligence_report_exists": true,
+    "prior_report_notes": "Sell-side VDD exists; reconcile rather than duplicate."
+  },
+  "access": {
+    "vdr_access": "direct file upload",
+    "above_the_line": true,
+    "customer_contact_permitted": true,
+    "competitor_contact_permitted": false,
+    "top5_customer_contact_permitted_pre_signing": false,
+    "expert_calls_permitted": true,
+    "external_web_research_permitted": true,
+    "nda_constraints": [
+      "purge data-room material at engagement close"
+    ],
+    "data_retention_policy": "purge engagement index at close"
+  },
+  "deliverable": {
+    "primary_audience": "investment committee",
+    "output_format": "slide presentation",
+    "house_style_notes": null,
+    "length_limit_pages": null
+  },
+  "open_intake_questions": []
+}

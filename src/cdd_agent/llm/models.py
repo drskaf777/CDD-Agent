@@ -49,7 +49,16 @@ def get_crew_llm(*, model: Optional[str] = None) -> Any:
 
         return StubCrewLLM()
 
-    from crewai import LLM
+    try:
+        from crewai import LLM
+    except ImportError as exc:  # pragma: no cover - environment-dependent
+        raise ImportError(
+            "The Critic runs on CrewAI, which is an optional extra because it does "
+            "not support Python 3.14. Install it with `pip install -e \".[critic]\"` "
+            "on a 3.11-3.13 interpreter. It is not substituted with anything else: a "
+            "Critic that is quietly not the Critic defeats the separation it exists "
+            "for (Checkpoint 4.1 s 2.4)."
+        ) from exc
 
     return LLM(model=f"anthropic/{model or settings.critic_model}")
 

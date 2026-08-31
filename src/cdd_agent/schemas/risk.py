@@ -100,6 +100,15 @@ class RiskRegister(Stamped):
     def categories_evaluated(self) -> set[RiskCategory]:
         return {r.category for r in self.risks}
 
-    def coverage(self) -> float:
-        """Risk Register coverage metric (Checkpoint 6.1)."""
-        return len(self.categories_evaluated()) / len(RiskCategory)
+    def coverage(self, applicable: "list[RiskCategory] | None" = None) -> float:
+        """Risk Register coverage metric (Checkpoint 6.1).
+
+        `applicable` narrows the denominator - integration/synergy applies only to
+        strategic buyers, so counting it against a sponsor deal understates coverage.
+        The register cannot know the buyer type, so the caller supplies the set.
+        """
+        pool = list(applicable) if applicable else list(RiskCategory)
+        evaluated = self.categories_evaluated()
+        if not pool:
+            return 1.0
+        return len([c for c in pool if c in evaluated]) / len(pool)

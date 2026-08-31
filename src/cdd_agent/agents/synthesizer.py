@@ -20,6 +20,7 @@ from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.guardrails.output_contract import ContractReport, check_deck
 from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS
 from cdd_agent.knowledge.outline import tailored_outline
+from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.schemas.common import ConfidenceTag, OutlineSection
 from cdd_agent.schemas.deck import Claim, Deck, Exhibit, Slide
 from cdd_agent.schemas.evidence import EvidenceMatrix
@@ -200,7 +201,10 @@ class Synthesizer(Agent):
                     kind="table",
                     columns=["ID", "Category", "Finding", "Sev", "Lik", "Score", "Flags"],
                     rows=risk_rows,
-                    note=f"Taxonomy coverage: {register.coverage():.0%}",
+                    note=(
+                        "Taxonomy coverage: "
+                        f"{register.coverage(applicable_categories(self.context.is_strategic_buyer)):.0%}"
+                    ),
                 ),
                 Exhibit(
                     title="Outstanding information gaps",

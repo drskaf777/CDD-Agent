@@ -54,17 +54,24 @@ Three design decisions carry most of the weight, and each has a failure mode beh
 
 ## Install
 
-**Python 3.11–3.13.** The upper bound is CrewAI's, not this project's: CrewAI declares
-`>=3.10,<3.14` and publishes no wheels for 3.14, so the Critic persona cannot be
-installed on a 3.14 interpreter. Everything else in the stack — LangChain,
-langchain-anthropic, Chroma, MCP — runs fine on 3.14, and the pipeline itself runs there
-in offline mode. If `python --version` reports 3.14, install a 3.13 interpreter before
-creating the virtualenv, or the `pip install` below will refuse.
+Python 3.11 or later.
 
 ```bash
 python -m venv .venv && .venv/Scripts/activate   # Windows; use bin/activate elsewhere
 pip install -e ".[dev]"
 ```
+
+**One caveat about the Critic.** CrewAI is the Critic's framework, but it declares
+`>=3.10,<3.14` and ships no wheels for 3.14, so it is an optional extra rather than a
+base dependency — otherwise the whole package would be uninstallable on 3.14, including
+the parts that have nothing to do with the Critic. On a 3.11–3.13 interpreter:
+
+```bash
+pip install -e ".[dev,critic]"
+```
+
+Without it, everything runs except the model-backed Critic, which raises a clear error
+rather than quietly substituting something else for the persona.
 
 Set credentials (either works — an `ant auth login` profile needs no env var):
 
@@ -90,10 +97,28 @@ data room contains three deliberate traps:
   what a document says about itself, and a curated reference call is the exact bias the
   outside-in standard exists to catch.
 
+Run it in two commands — and the fact that it takes two is the point:
+
 ```bash
-cdd seed-kb
-cdd run project-sentinel --briefing demo/briefing.md --data-room demo/data_room --approve-phase1
+cdd demo
 ```
+
+That seeds the knowledge base, loads the Deal Profile Brief, and runs the Phase-1 beam
+search. It then **stops**, because all three framings score within the 0.5-point tie
+band and ties are not auto-resolved by reranking. Pick one, as the deal team would:
+
+```bash
+cdd demo --pick risk --no-reset
+```
+
+Phases 2–4 then run: data request, ingestion, the ReAct evidence loop, the Risk Auditor,
+and synthesis into `demo/output/project-sentinel-draft.md`, followed by the metric set.
+
+`cdd demo` loads the Deal Profile from `demo/deal_profile.json` rather than running
+Phase-0 intake on `demo/briefing.md`. Offline mode has no model to extract a thesis from
+prose, and the intake agent will not invent one — so `cdd run --briefing demo/briefing.md`
+halts at the Phase-0 gate by design. With an API key set and `CDD_OFFLINE=0`, that
+command runs intake for real and the fixture is unnecessary.
 
 Or phase by phase, with the gates where they belong:
 

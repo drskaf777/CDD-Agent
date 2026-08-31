@@ -20,6 +20,7 @@ Reference documents:
 | Specification element | Module |
 |---|---|
 | Five-phase operating model (spec § II) | `orchestration/controller.py` |
+| Worked engagement, run in two gated steps | `cli.py` (`cdd demo`), `demo/` |
 | Diagnostic intake protocol, Categories A–G (§ III) | `knowledge/intake_questions.py`, `schemas/deal_profile.py`, `agents/intake.py` |
 | Enhanced master outline, universal + tailored (§ IV) | `knowledge/outline.py` |
 | Data-request catalogue and tiering (§ V) | `knowledge/data_request_catalog.py`, `agents/analyst.py` |
@@ -147,10 +148,14 @@ backwards.
   and inspectable, but a hypothesis whose vocabulary does not match a section's key
   elements will land in the summary sections rather than the specific one.
 * **Offline mode is machinery, not judgment.** See the README.
-* **Python 3.14 cannot run the Critic.** CrewAI declares `>=3.10,<3.14`, so
-  `requires-python` is pinned to match. LangChain, langchain-anthropic, Chroma, and MCP
-  all run on 3.14; only the CrewAI persona does not. The MCP layer targets `mcp>=2`,
-  where `FastMCP` was renamed `MCPServer`.
+* **Python 3.14 cannot run the Critic.** CrewAI declares `>=3.10,<3.14`, so it is an
+  optional `[critic]` extra rather than a base dependency - pinning `requires-python` to
+  match made the entire package uninstallable on 3.14, including the parts unrelated to
+  the Critic. LangChain, langchain-anthropic, Chroma, and MCP all run on 3.14. Without
+  the extra, `get_crew_llm` raises a message naming the extra; it does not fall back to
+  the deterministic rubric, because a Critic that is quietly not the Critic defeats the
+  separation it exists for. The MCP layer targets `mcp>=2`, where `FastMCP` was renamed
+  `MCPServer`.
 * **What has and has not been executed.** The offline pipeline, both indexes, the
   guardrails, and the routing rules are covered by the test suite and were run end to
   end on the demo engagement. The model-backed paths — the LCEL Generator, the CrewAI

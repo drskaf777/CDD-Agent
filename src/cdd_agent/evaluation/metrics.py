@@ -37,11 +37,14 @@ class Metric:
     detail: str = ""
     guardrail: str = ""
     needs_human: bool = False
+    # False for counts and durations. Without it a count of 0 renders as "0.0%",
+    # which reads as a failing score rather than "nothing was raised".
+    is_ratio: bool = True
 
     def render(self) -> str:
         if self.value is None:
             shown = "pending human review" if self.needs_human else "n/a"
-        elif 0.0 <= self.value <= 1.0 and self.name != "latency_seconds":
+        elif self.is_ratio and 0.0 <= self.value <= 1.0:
             shown = f"{self.value:.1%}"
         else:
             shown = f"{self.value:,.2f}"
@@ -147,7 +150,7 @@ def escalation_rate(store: StateStore, engagement_id: str) -> Metric:
     detail = ", ".join(f"{k}={v}" for k, v in sorted(by_trigger.items())) or "none raised"
     return Metric(
         "escalations_raised", float(len(escalations)), detail,
-        guardrail="escalation rules",
+        guardrail="escalation rules", is_ratio=False,
     )
 
 
@@ -155,7 +158,7 @@ def latency(timings: list[tuple[str, float]]) -> list[Metric]:
     """Wall-clock per phase, with the Analyst-Auditor loop called out."""
     out = [
         Metric("latency_seconds", round(sum(t for _, t in timings), 2),
-               "total pipeline", guardrail="runtime monitoring")
+               "total pipeline", guardrail="runtime monitoring", is_ratio=False)
     ]
     for phase, seconds in timings:
         if "evidence" in phase.lower() or "audit" in phase.lower():
@@ -165,6 +168,7 @@ def latency(timings: list[tuple[str, float]]) -> list[Metric]:
                     round(seconds, 2),
                     "deliberate latency-for-reliability trade (Checkpoint 5.1)",
                     guardrail="runtime monitoring",
+                    is_ratio=False,
                 )
             )
     return out

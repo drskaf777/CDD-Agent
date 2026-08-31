@@ -26,6 +26,7 @@ from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.escalation import check_phase1
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
+from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.orchestration.controller import Controller
 from cdd_agent.retrieval.ingestion import ingest_directory
 from cdd_agent.schemas.common import Tier
@@ -207,7 +208,8 @@ def audit(engagement: str) -> None:
     if report.routed_back:
         console.print(f"[yellow]Routed back to the Analyst: "
                       f"{', '.join(sorted(set(report.routed_back)))}[/yellow]")
-    console.print(f"Taxonomy coverage: {register.coverage():.0%}")
+    applicable = applicable_categories(ctx.is_strategic_buyer)
+    console.print(f"Taxonomy coverage: {register.coverage(applicable):.0%}")
 
 
 @app.command()
@@ -267,6 +269,133 @@ def run(
             timings=[(t.phase, t.seconds) for t in report.timings],
         )
         console.print(Panel(metrics.render(), title="Evaluation metrics"))
+
+
+@app.command()
+def demo(
+    engagement: str = typer.Option("project-sentinel", help="Engagement id to use."),
+    pick: Optional[str] = typer.Option(
+        None, help="Resolve a Phase-1 tie by choosing this branch (growth|margin|risk)."
+    ),
+    out: Optional[Path] = typer.Option(None, help="Where to write the draft."),
+    reset: bool = typer.Option(True, help="Start the engagement from scratch."),
+) -> None:
+    """Run the Project Sentinel demo end to end.
+
+    Loads the Deal Profile Brief from demo/deal_profile.json rather than running
+    Phase-0 intake: offline mode has no model to extract a thesis from prose, and
+    inventing one would defeat the point of the intake gate. Everything after that
+    is the real pipeline.
+    """
+    import json
+
+    from cdd_agent.knowledge.seed import seed_knowledge_base
+    from cdd_agent.schemas.deal_profile import DealProfile
+
+    demo_dir = Path(__file__).resolve().parents[2] / "demo"
+    profile_file = demo_dir / "deal_profile.json"
+    data_room = demo_dir / "data_room"
+    if not profile_file.exists():
+        raise typer.BadParameter(f"missing demo fixture {profile_file}")
+
+    store = StateStore()
+    if reset:
+        store.purge_engagement(engagement, agent="cdd demo", keep_audit=False)
+
+    console.print("[bold]Seeding the cross-engagement knowledge base[/bold]")
+    total = sum(seed_knowledge_base().values())
+    console.print(f"  {total} reference chunk(s) indexed\n")
+
+    raw = json.loads(profile_file.read_text(encoding="utf-8"))
+    raw["engagement_id"] = engagement
+    profile = DealProfile.model_validate(raw)
+    ctx = AgentContext.create(engagement, store=store, profile=profile)
+    ctx.memory.save_deal_profile(profile, agent="Intake Agent (demo fixture)")
+    console.print(f"[bold]Phase 0[/bold] - Deal Profile Brief: {profile.target.legal_name}")
+    console.print(f"  Thesis: {profile.thesis.one_sentence_thesis}")
+    console.print(f"  Ready for Phase 1: {profile.is_ready_for_phase_1()[0]}\n")
+
+    console.print("[bold]Phase 1[/bold] - Tree-of-Thought beam search")
+    architect = ThesisArchitect(ctx)
+    result = architect.run()
+    table = Table(show_header=True)
+    for col in ("Branch", "Framing", "4Q", "Avg", "Status"):
+        table.add_column(col)
+    for branch in result.branches:
+        table.add_row(
+            branch.branch_id,
+            branch.framing_label,
+            "pass" if branch.score and branch.score.four_question.passed else "FAIL",
+            f"{branch.score.average:.2f}" if branch.score else "-",
+            "SELECTED" if branch.selected else ("pruned" if branch.pruned else "-"),
+        )
+    console.print(table)
+
+    for escalation in check_phase1(result):
+        console.print(Panel(escalation.message, title="Human decision required",
+                            border_style="yellow"))
+    if result.requires_human():
+        if not pick:
+            console.print(
+                "\n[yellow]The pipeline stops here by design.[/yellow] Phase-1 ties are "
+                "not auto-resolved by reranking - a person chooses. Re-run with the "
+                "branch you want:\n\n  cdd demo --pick risk --no-reset\n"
+            )
+            raise typer.Exit(code=0)
+        result = architect.override(result, pick, approved_by="cdd demo (operator)")
+        console.print(f"[green]Operator selected[/green] branch {pick!r}\n")
+
+    tree = architect.approve(result, approved_by="cdd demo (operator)")
+
+    console.print("[bold]Phase 2[/bold] - tailored data request")
+    checklist = Analyst(ctx).generate_data_request(tree)
+    console.print(
+        f"  {len(checklist.items)} items; "
+        f"{len(checklist.by_tier(Tier.DEAL_CRITICAL))} Tier-1, "
+        f"{sum(1 for i in checklist.items if i.sub_sector_specific)} sub-sector specific\n"
+    )
+
+    console.print("[bold]Phase 3[/bold] - ingestion and the ReAct evidence loop")
+    report, tables = ingest_directory(engagement, data_room)
+    console.print(f"  {report.summary()}")
+    if ctx.registry is not None:
+        ctx.registry.tables = list(tables)
+    matrix, loop = Analyst(ctx).run_evidence_loop(tree)
+    console.print(f"  {loop.summary()}")
+    for h in tree.tier_1():
+        console.print(f"    [{h.id}] {matrix.rating(h.id).value}")
+
+    console.print("\n[bold]Phase 3[/bold] - Risk Auditor")
+    register, audit_report = RiskAuditor(ctx).audit(tree, matrix)
+    console.print(f"  {audit_report.summary()}")
+    console.print(
+        "  taxonomy coverage: "
+        f"{register.coverage(applicable_categories(ctx.is_strategic_buyer)):.0%}"
+    )
+
+    console.print("\n[bold]Phase 4[/bold] - synthesis")
+    deck, contract = Synthesizer(ctx).run(tree, matrix, register)
+    target = out or demo_dir / "output" / f"{engagement}-draft.md"
+    write_markdown(deck, target)
+    console.print(f"  {len(deck.slides)} sections, groundedness {deck.groundedness():.0%}")
+    for warning in contract.warnings[:3]:
+        console.print(f"  [yellow]warning:[/yellow] {warning}")
+
+    metrics = evaluate(
+        deck=deck, matrix=matrix, register=register, tree=tree, store=store,
+        engagement_id=engagement, strategic_buyer=ctx.is_strategic_buyer,
+    )
+    console.print(Panel(metrics.render(), title="Evaluation metrics"))
+    console.print(
+        Panel(
+            f"Draft written to {target}\n\n"
+            "This is a working draft for partner/MD review, not an IC recommendation. "
+            "Offline mode produced it, so it exercises the machinery and carries no "
+            "judgment - see the README.",
+            title="Done",
+            border_style="green",
+        )
+    )
 
 
 # ------------------------------------------------------------------- utilities
