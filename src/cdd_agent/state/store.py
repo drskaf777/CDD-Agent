@@ -34,6 +34,7 @@ class Collection(str, Enum):
     EVIDENCE_MATRIX = "evidence_matrix"
     RISK_REGISTER = "risk_register"
     CITATION_LOG = "citation_log"         # chunk -> source, per the v6.7 diagram
+    TRACE = "trace"                       # Thought -> Action -> Observation steps
     DECK = "deck"
     ESCALATION = "escalation"
     CORRECTION = "correction"             # user corrections, replayed across engagements

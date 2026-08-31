@@ -68,8 +68,15 @@ class Deck(Stamped):
         return [c for s in self.slides for c in s.claims]
 
     def groundedness(self) -> float:
-        """Share of claims carrying at least one citation (Checkpoint 6.1 metric)."""
-        claims = self.all_claims()
-        if not claims:
+        """Share of *assertive* claims carrying a citation (Checkpoint 6.1 metric).
+
+        No Data claims are excluded from the denominator, matching
+        `cdd_agent.evaluation.metrics.groundedness`. A logged gap is a correct output,
+        not an ungrounded claim; counting it as a miss would create pressure to assert
+        rather than to log, which is exactly backwards. Two definitions of one metric
+        is worse than either definition.
+        """
+        assertive = [c for c in self.all_claims() if c.tag is not ConfidenceTag.NO_DATA]
+        if not assertive:
             return 1.0
-        return sum(1 for c in claims if c.citations) / len(claims)
+        return sum(1 for c in assertive if c.citations) / len(assertive)

@@ -35,6 +35,7 @@ from cdd_agent.schemas.data_request import DataRequestChecklist, DataRequestItem
 from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
 from cdd_agent.schemas.hypothesis import Hypothesis, HypothesisTree
 from cdd_agent.schemas.risk import GapOwner, InformationGap
+from cdd_agent.state.store import Collection
 from cdd_agent.tools.retrieval_tools import RetrievalObservation
 
 # Rating order for the priority queue: least-supported first.
@@ -250,6 +251,7 @@ class Analyst(Agent):
         if save:
             self.context.memory.save_evidence_matrix(matrix, agent=self.name)
             self._save_gaps(report.gaps_logged)
+            self._save_trace(report)
         return matrix, report
 
     # --------------------------------------------------------------- internals
@@ -329,6 +331,31 @@ class Analyst(Agent):
             and matrix.rating(hypothesis.id) is ConfidenceTag.NO_DATA,
             carried_to_confirmatory=carried,
         )
+
+    def _save_trace(self, report: LoopReport) -> None:
+        """Persist the reasoning, not just its result.
+
+        The audit log records that the Evidence Matrix changed and who changed it.
+        This records *why* the Analyst went where it went - which hypothesis was
+        weakest, what it asked, and what came back. Without it the run is auditable
+        only at the artifact level, which is not enough to review a judgment call.
+        """
+        for step in report.steps:
+            self.context.store.append(
+                self.context.engagement_id,
+                Collection.TRACE,
+                {
+                    "step": step.step,
+                    "at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                    "phase": "Phase 3 - evidence loop",
+                    "hypothesis_id": step.hypothesis_id,
+                    "thought": step.thought,
+                    "action": step.action,
+                    "observation": step.observation,
+                    "tag": step.tag.value,
+                },
+                agent=self.name,
+            )
 
     def _save_gaps(self, gaps: list[InformationGap]) -> None:
         if not gaps:

@@ -21,6 +21,7 @@ Reference documents:
 |---|---|
 | Five-phase operating model (spec § II) | `orchestration/controller.py` |
 | Worked engagement, run in two gated steps | `cli.py` (`cdd demo`), `demo/` |
+| Local interface and shareable report | `web/api.py`, `web/static/index.html`, `web/report.py` |
 | Diagnostic intake protocol, Categories A–G (§ III) | `knowledge/intake_questions.py`, `schemas/deal_profile.py`, `agents/intake.py` |
 | Enhanced master outline, universal + tailored (§ IV) | `knowledge/outline.py` |
 | Data-request catalogue and tiering (§ V) | `knowledge/data_request_catalog.py`, `agents/analyst.py` |
@@ -121,7 +122,26 @@ The Analyst ↔ Auditor loop is bounded by `max_auditor_rounds` (default 3). The
 deliberate latency-for-reliability trade; unbounded, it would trade away the reliability
 it was added to buy.
 
-## 7. Evaluation
+## 7. The interface
+
+`web/api.py` is deliberately thin: every endpoint calls the same agents the CLI calls,
+so the interface cannot do anything the pipeline would not do and cannot skip a gate.
+There is no endpoint that selects a framing without recording who selected it, and none
+that synthesises without the output contract running first — a 422 carrying the
+violations is the guardrail working, not an error to route around.
+
+The read model is a single snapshot endpoint rather than a dozen fine-grained ones. A
+diligence UI is read *across* its panels — the evidence against the risks against the
+trace — so serving them from one consistent read avoids showing a matrix from one
+moment beside a register from another.
+
+**The trace is a first-class artifact.** The audit log already recorded that the
+Evidence Matrix changed and who changed it; that is not enough to review a judgment
+call. `Collection.TRACE` stores each Thought → Action → Observation step, so a reviewer
+can see which hypothesis was weakest, what was asked, and what came back. The report
+reproduces both in full.
+
+## 8. Evaluation
 
 `evaluation/metrics.py` computes the six metrics from Checkpoint 6.1. Two of them are
 returned as `None` with `needs_human=True`, on purpose:
@@ -135,7 +155,7 @@ returned as `None` with `needs_human=True`, on purpose:
 ungrounded claim would create pressure to assert rather than to log, which is precisely
 backwards.
 
-## 8. Known limits
+## 9. Known limits
 
 * **Document extraction** handles `.txt` / `.md` and `.csv` / `.tsv` / `.json`. Real
   data rooms are PDF and Office files; `retrieval/ingestion.py` reports unsupported

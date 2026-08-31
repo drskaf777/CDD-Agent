@@ -120,7 +120,48 @@ prose, and the intake agent will not invent one — so `cdd run --briefing demo/
 halts at the Phase-0 gate by design. With an API key set and `CDD_OFFLINE=0`, that
 command runs intake for real and the fixture is unnecessary.
 
-Or phase by phase, with the gates where they belong:
+## The interface
+
+```bash
+cdd serve
+```
+
+Opens a local app at http://127.0.0.1:8000 (localhost only — an engagement's data room
+is client-confidential and this server has no authentication).
+
+The left rail is the five-phase pipeline as a live stepper; the centre is tabbed:
+
+| Tab | What it shows |
+|---|---|
+| Overview | Deal Profile Brief, headline metrics, and each role's tool authorization under intake Category F |
+| Hypotheses | The three ToT framings side by side with their Critic scores — and the gate where you pick one |
+| Data request | The tiered checklist, each item traced to the hypotheses it supports |
+| Evidence | The Evidence Matrix: hypothesis → data → confidence, with citations and similarity scores |
+| Risks & gaps | The register ranked by severity × likelihood, plus taxonomy coverage and open gaps |
+| Draft | The generated deck, tags and sources inline |
+| **Trace** | Every Thought → Action → Observation step and every attributed state-store write |
+
+The Trace tab is the point of the whole thing. Reasoning steps record *why* the Analyst
+went where it went; state writes record *what* changed and which agent changed it.
+Filter to either, or read them interleaved. Nothing is anonymous and nothing is
+retro-fitted: the store refuses an unattributed write.
+
+Clearing the Phase-1 gate needs a name — it is written into the artifact provenance and
+the audit trail, because a gate cleared by nobody in particular is not a gate.
+
+**Export a shareable report:**
+
+```bash
+cdd export project-sentinel --out report.html
+```
+
+One self-contained HTML file — no external assets beyond the webfont — carrying the
+hypothesis tree, the draft findings, the risk register, and the full trace. The
+Export report button in the app does the same thing.
+
+## Phase by phase
+
+Or drive it from the terminal, with the gates where they belong:
 
 ```bash
 cdd intake project-sentinel --briefing demo/briefing.md

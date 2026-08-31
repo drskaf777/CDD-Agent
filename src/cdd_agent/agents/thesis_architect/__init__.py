@@ -90,7 +90,14 @@ class ThesisArchitect(Agent):
                 "no branch selected - resolve the escalation before approving"
             )
         tree.human_approved = True
-        tree.created_by = f"{tree.created_by} (approved by {approved_by})"
+        # Override then approve is one decision by one person, not two. Appending both
+        # produces a provenance string that reads as a committee.
+        stamp = f"(approved by {approved_by})"
+        if stamp not in tree.created_by:
+            tree.created_by = (
+                tree.created_by.replace(f"(override by {approved_by})", "").strip()
+                + f" {stamp}"
+            ).replace("  ", " ")
         self.context.memory.save_hypothesis_tree(tree, agent=self.name)
         self.context.memory.save_thesis_search(result, agent=self.name)
         return tree

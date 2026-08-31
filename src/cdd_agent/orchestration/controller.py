@@ -37,6 +37,7 @@ from cdd_agent.guardrails.escalation import (
     check_source_conflicts,
     check_tier1_evidence,
     final_recommendation_review,
+    record as record_escalations,
 )
 from cdd_agent.retrieval.ingestion import IngestionReport, ingest_directory
 from cdd_agent.schemas.data_request import DataRequestChecklist
@@ -270,13 +271,9 @@ class Controller:
             report.timings.append(PhaseTiming(phase, time.perf_counter() - start))
 
     def _record_escalations(self, report: RunReport) -> None:
-        for escalation in report.escalations:
-            self.context.store.append(
-                self.context.engagement_id,
-                Collection.ESCALATION,
-                escalation.to_dict(),
-                agent="Controller",
-            )
+        record_escalations(
+            self.context.store, self.context.engagement_id, report.escalations
+        )
 
 
 def new_context(engagement_id: str, store: Optional[StateStore] = None) -> AgentContext:

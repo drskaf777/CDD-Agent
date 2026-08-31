@@ -142,6 +142,30 @@ def access_boundary(reason: str, attempted: str) -> Escalation:
     )
 
 
+def record(store: Any, engagement_id: str, escalations: list[Escalation]) -> int:
+    """Persist escalations once each, keyed by trigger and message.
+
+    De-duplicated because re-running a phase must not multiply one open escalation:
+    the escalation rate is an evaluation metric, and a duplicate reads as the guardrail
+    firing twice when it fired once.
+    """
+    from cdd_agent.state.store import Collection
+
+    seen = {
+        (d.get("trigger"), d.get("message"))
+        for _, d in store.list(engagement_id, Collection.ESCALATION)
+    }
+    written = 0
+    for e in escalations:
+        payload = e.to_dict()
+        if (payload["trigger"], payload["message"]) in seen:
+            continue
+        store.append(engagement_id, Collection.ESCALATION, payload, agent="Controller")
+        seen.add((payload["trigger"], payload["message"]))
+        written += 1
+    return written
+
+
 def final_recommendation_review(engagement_id: str) -> Escalation:
     """Trigger 5. Unconditional: every go/no-go is human-reviewed before the IC."""
     return Escalation(

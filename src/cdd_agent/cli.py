@@ -24,7 +24,7 @@ from cdd_agent.agents.synthesizer import Synthesizer
 from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
-from cdd_agent.guardrails.escalation import check_phase1
+from cdd_agent.guardrails.escalation import check_phase1, record as record_escalations
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.orchestration.controller import Controller
@@ -108,7 +108,9 @@ def thesis(engagement: str) -> None:
         )
     console.print(table)
 
-    for escalation in check_phase1(result):
+    escalations = check_phase1(result)
+    record_escalations(ctx.store, engagement, escalations)
+    for escalation in escalations:
         console.print(Panel(escalation.message, title="Human decision required",
                             border_style="yellow"))
     selected = result.selected()
@@ -331,7 +333,9 @@ def demo(
         )
     console.print(table)
 
-    for escalation in check_phase1(result):
+    escalations = check_phase1(result)
+    record_escalations(store, engagement, escalations)
+    for escalation in escalations:
         console.print(Panel(escalation.message, title="Human decision required",
                             border_style="yellow"))
     if result.requires_human():
@@ -342,10 +346,10 @@ def demo(
                 "branch you want:\n\n  cdd demo --pick risk --no-reset\n"
             )
             raise typer.Exit(code=0)
-        result = architect.override(result, pick, approved_by="cdd demo (operator)")
+        result = architect.override(result, pick, approved_by="demo operator")
         console.print(f"[green]Operator selected[/green] branch {pick!r}\n")
 
-    tree = architect.approve(result, approved_by="cdd demo (operator)")
+    tree = architect.approve(result, approved_by="demo operator")
 
     console.print("[bold]Phase 2[/bold] - tailored data request")
     checklist = Analyst(ctx).generate_data_request(tree)
@@ -396,6 +400,45 @@ def demo(
             border_style="green",
         )
     )
+
+
+# ------------------------------------------------------------------ interface
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Bind address. Localhost by default."),
+    port: int = typer.Option(8000),
+    reload: bool = typer.Option(False, help="Auto-reload on source changes."),
+) -> None:
+    """Start the local web interface.
+
+    Binds to localhost by default: an engagement's data room is client-confidential,
+    and this server has no authentication.
+    """
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise typer.BadParameter(
+            "uvicorn is missing; reinstall with `pip install -e .`"
+        ) from exc
+    console.print(f"[bold]CDD Agent[/bold] on http://{host}:{port}")
+    uvicorn.run("cdd_agent.web.api:app", host=host, port=port, reload=reload)
+
+
+@app.command()
+def export(
+    engagement: str,
+    out: Optional[Path] = typer.Option(None, help="Where to write the HTML report."),
+    no_trace: bool = typer.Option(False, help="Omit the trace and audit history."),
+) -> None:
+    """Render the engagement as a self-contained, shareable HTML report."""
+    from cdd_agent.web.report import render_report
+
+    ctx = _context(engagement)
+    html = render_report(ctx, standalone=True, include_trace=not no_trace)
+    target = out or Path("demo/output") / f"{engagement}-report.html"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(html, encoding="utf-8")
+    console.print(f"Report written to {target} ({len(html):,} bytes)")
 
 
 # ------------------------------------------------------------------- utilities
