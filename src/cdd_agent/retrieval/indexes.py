@@ -94,10 +94,22 @@ class _BaseIndex:
 
         settings = get_settings()
         settings.ensure_dirs()
-        self._client = chromadb.PersistentClient(
-            path=str(settings.chroma_dir),
-            settings=ChromaSettings(anonymized_telemetry=False, allow_reset=True),
-        )
+        _check_index_compatibility(settings.chroma_dir, chromadb.__version__)
+        try:
+            self._client = chromadb.PersistentClient(
+                path=str(settings.chroma_dir),
+                settings=ChromaSettings(anonymized_telemetry=False, allow_reset=True),
+            )
+        except BaseException as exc:
+            # Chroma's Rust bindings raise a PanicException, which derives from
+            # BaseException and would otherwise escape every normal handler as an
+            # unreadable stack trace. The overwhelmingly common cause is an index
+            # written by a different chromadb, so translate it - but only after
+            # confirming it is not an ordinary error we should let through.
+            if type(exc).__name__ != "PanicException":
+                raise
+            raise _mismatch_error(settings.chroma_dir, chromadb.__version__) from exc
+        _record_index_version(settings.chroma_dir, chromadb.__version__)
         self.collection_name = collection_name
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
@@ -235,6 +247,74 @@ class KnowledgeBaseIndex(_BaseIndex):
 
 
 # --------------------------------------------------------------------- helpers
+_VERSION_MARKER = ".chromadb-version"
+
+
+class IndexVersionMismatch(RuntimeError):
+    """The persisted index was written by a different chromadb than the one loaded."""
+
+
+def _mismatch_error(chroma_dir: Any, running_version: str) -> IndexVersionMismatch:
+    """Build the explanation shown when the persisted index cannot be opened."""
+    from pathlib import Path
+
+    marker = Path(chroma_dir) / _VERSION_MARKER
+    written_by = marker.read_text(encoding="utf-8").strip() if marker.exists() else ""
+    # The marker records the last version that opened the index, which is not always
+    # the one that wrote it - so never claim a version that contradicts the failure.
+    provenance = (
+        f"was written by chromadb {written_by}"
+        if written_by and written_by != running_version
+        else "was written by a different chromadb"
+    )
+    return IndexVersionMismatch(
+        "\n".join(
+            [
+                f"The vector index at {chroma_dir} {provenance}, but chromadb "
+                f"{running_version} is loaded. Chroma cannot read its own persisted "
+                "format across versions.",
+                "",
+                "Delete the index directory and rebuild it:",
+                f"    rm -r {chroma_dir}",
+                "    cdd seed-kb",
+                "    cdd ingest <engagement> <data-room>",
+                "",
+                "This usually means two environments share one data directory - "
+                "CrewAI pins chromadb~=1.1.0, so a [critic] install resolves an older "
+                "chromadb than a plain one. Give each interpreter its own "
+                "CDD_CHROMA_DIR to keep both.",
+            ]
+        )
+    )
+
+
+def _check_index_compatibility(chroma_dir: Any, running_version: str) -> None:
+    """Refuse an index whose recorded chromadb version differs from the running one.
+
+    This catches the case cheaply and by name. It cannot catch everything: an index
+    created before this check carries no marker, which is why opening the client is
+    also wrapped - see `_BaseIndex.__init__`.
+    """
+    from pathlib import Path
+
+    marker = Path(chroma_dir) / _VERSION_MARKER
+    if not marker.exists():
+        return
+    if marker.read_text(encoding="utf-8").strip() != running_version:
+        raise _mismatch_error(chroma_dir, running_version)
+
+
+def _record_index_version(chroma_dir: Any, running_version: str) -> None:
+    """Stamp the directory after a successful open, so the next mismatch is named."""
+    from pathlib import Path
+
+    try:
+        (Path(chroma_dir) / _VERSION_MARKER).write_text(running_version, encoding="utf-8")
+    except OSError:
+        # A read-only or racing index directory is not a reason to fail the run.
+        pass
+
+
 def _cosine_similarity(distance: float | None) -> float:
     """Chroma returns cosine *distance*; the design speaks in similarity."""
     if distance is None:

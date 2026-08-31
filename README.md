@@ -61,7 +61,7 @@ python -m venv .venv && .venv/Scripts/activate   # Windows; use bin/activate els
 pip install -e ".[dev]"
 ```
 
-**One caveat about the Critic.** CrewAI is the Critic's framework, but it declares
+**The Critic needs Python 3.11–3.13.** CrewAI is the Critic's framework, but it declares
 `>=3.10,<3.14` and ships no wheels for 3.14, so it is an optional extra rather than a
 base dependency — otherwise the whole package would be uninstallable on 3.14, including
 the parts that have nothing to do with the Critic. On a 3.11–3.13 interpreter:
@@ -71,7 +71,27 @@ pip install -e ".[dev,critic]"
 ```
 
 Without it, everything runs except the model-backed Critic, which raises a clear error
-rather than quietly substituting something else for the persona.
+naming the extra rather than quietly substituting something else for the persona.
+
+**Two conflicts to know about if you install the Critic.** CrewAI constrains two of this
+project's own dependencies, and pip resolves them silently:
+
+| Package | Plain install | With `[critic]` | Consequence |
+|---|---|---|---|
+| `chromadb` | 1.5.x | 1.1.x (CrewAI pins `~=1.1.0`) | A persisted index is **not** readable across the two |
+| `mcp` | 2.x | 1.x on CrewAI ≥ 1.15 | `FastMCP` vs `MCPServer` — both are supported, no action needed |
+
+The `mcp` split is handled: `state/mcp_server.py` imports whichever name exists.
+
+The `chromadb` split is not something code can paper over — Chroma cannot read its own
+persisted format across versions, and it fails with a Rust panic rather than a Python
+error. The index is therefore version-stamped, and opening a mismatched one raises a
+readable `IndexVersionMismatch` telling you to rebuild. If you want both interpreters
+working at once, give each its own directory:
+
+```bash
+CDD_CHROMA_DIR=./data/chroma-313 CDD_DATA_DIR=./data313 cdd demo
+```
 
 Set credentials (either works — an `ant auth login` profile needs no env var):
 

@@ -19,12 +19,20 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mcp.server.mcpserver import MCPServer
-
 from cdd_agent.state.store import StateStore
 
-# mcp 2.x renamed FastMCP to MCPServer; pin mcp<2 if you need the v1 name.
-mcp = MCPServer("cdd-state")
+# mcp 2.x renamed FastMCP to MCPServer. Both are supported rather than pinned to one,
+# because CrewAI 1.15+ depends on mcp 1.x while newer standalone installs get 2.x -
+# pinning either would force a choice between the two frameworks the design names.
+# The decorator and run() surface used below is identical across both.
+try:
+    from mcp.server.mcpserver import MCPServer as _Server  # mcp >= 2
+    _MCP_MAJOR = 2
+except ImportError:  # pragma: no cover - depends on the installed mcp major
+    from mcp.server.fastmcp import FastMCP as _Server  # mcp 1.x
+    _MCP_MAJOR = 1
+
+mcp = _Server("cdd-state")
 _store = StateStore()
 
 
