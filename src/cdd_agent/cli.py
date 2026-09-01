@@ -411,6 +411,44 @@ def demo(
     )
 
 
+@app.command()
+def preflight(
+    data_room: Optional[Path] = typer.Option(None, help="Also check this data room."),
+    call: bool = typer.Option(
+        True, help="Make one tiny live model call to prove the credential works."
+    ),
+) -> None:
+    """Check everything a live run needs, before you depend on it.
+
+    With --call (the default) this makes a single minimal request to the configured
+    model. That costs a fraction of a cent and is the only check that proves the
+    credential actually works rather than merely being present.
+    """
+    from cdd_agent.evaluation.preflight import run_preflight
+
+    result = run_preflight(live_call=call, data_room=data_room)
+    table = Table(title="Preflight")
+    table.add_column("")
+    table.add_column("Check")
+    table.add_column("Detail", overflow="fold")
+    for c in result.checks:
+        style = "green" if c.ok else ("red" if c.fatal else "yellow")
+        table.add_row(f"[{style}]{c.mark}[/{style}]", c.name, c.detail)
+    console.print(table)
+
+    for c in result.checks:
+        if not c.ok and c.fix:
+            console.print(f"[yellow]{c.name}[/yellow]: {c.fix}")
+
+    if result.ready:
+        console.print()
+        console.print("[green]Ready for a live run.[/green]")
+    else:
+        console.print()
+        console.print("[red]Not ready.[/red] Fix the items above, then re-run.")
+        raise typer.Exit(code=1)
+
+
 # ------------------------------------------------------------------ interface
 @app.command()
 def serve(

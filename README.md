@@ -93,13 +93,35 @@ working at once, give each its own directory:
 CDD_CHROMA_DIR=./data/chroma-313 CDD_DATA_DIR=./data313 cdd demo
 ```
 
-Set credentials (either works — an `ant auth login` profile needs no env var):
+## Running it live
 
-```bash
-cp .env.example .env   # then set ANTHROPIC_API_KEY
+Offline mode exercises the machinery. A live run needs three things together, and
+`cdd preflight` checks all of them before you depend on it:
+
+1. **`ANTHROPIC_API_KEY` in the environment.** Not an `ant auth login` profile —
+   CrewAI's Anthropic provider reads the variable directly and ignores the CLI
+   profile, so the Critic fails without it even on an authenticated machine.
+2. **Python 3.11–3.13**, so CrewAI is installed and the Critic can actually run.
+3. **`CDD_OFFLINE=0`.**
+
+```powershell
+$env:ANTHROPIC_API_KEY="sk-ant-..."
+$env:CDD_OFFLINE="0"
+.venv313\Scripts\cdd preflight --data-room demo/data_room
 ```
 
-Default model is `claude-opus-5`; override with `CDD_MODEL`.
+Preflight makes one minimal model call — a fraction of a cent — because a key being
+*present* is not the same as a key that *works*. Pass `--no-call` to skip it.
+
+Because CrewAI pins an older chromadb, a 3.13 environment needs its own index
+directory (see the conflict table above):
+
+```powershell
+$env:CDD_CHROMA_DIR="./data/chroma-313"; $env:CDD_DATA_DIR="./data313"
+```
+
+Default model is `claude-opus-5`; override with `CDD_MODEL`. Live intake reads the
+briefing for real, so `cdd run --briefing demo/briefing.md` works without the fixture.
 
 ## Run the demo engagement
 

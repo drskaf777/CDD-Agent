@@ -10,6 +10,7 @@ Model default is `claude-opus-5`, configurable via CDD_MODEL.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Optional
 
 from cdd_agent.config import get_settings
@@ -59,6 +60,17 @@ def get_crew_llm(*, model: Optional[str] = None) -> Any:
             "Critic that is quietly not the Critic defeats the separation it exists "
             "for (Checkpoint 4.1 s 2.4)."
         ) from exc
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        # CrewAI's native Anthropic provider reads the environment variable directly
+        # and does not consult an `ant auth login` profile. Left alone it raises
+        # ImportError("Error importing native provider: ANTHROPIC_API_KEY is required"),
+        # which sends you looking for a broken install rather than a missing key.
+        raise RuntimeError(
+            "The Critic needs ANTHROPIC_API_KEY set in the environment. CrewAI's "
+            "Anthropic provider reads that variable directly - unlike the rest of the "
+            "pipeline, it will not pick up an `ant auth login` profile."
+        )
 
     return LLM(model=f"anthropic/{model or settings.critic_model}")
 
