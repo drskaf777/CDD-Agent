@@ -66,6 +66,19 @@ class SourceDocument:
             self.version_group = _version_group(self.source_file)
 
 
+def _file_slug(source_file: str) -> str:
+    """A per-file identity, version markers and dates intact.
+
+    Chunk ids must be unique per *document*, not per version group. Deriving them
+    from the group made two versions of one document collide, so the upsert silently
+    overwrote one with the other and the supersession filter had nothing left to
+    filter - the exact grounded-but-wrong failure it exists to prevent, reintroduced
+    at write time.
+    """
+    stem = re.sub(r"\.[A-Za-z0-9]{1,5}$", "", source_file)
+    return re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or stem.lower()
+
+
 def _version_group(source_file: str) -> str:
     """Group name shared by drafts and finals of the same document.
 
@@ -134,7 +147,7 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
         index += 1
         chunks.append(
             Chunk(
-                chunk_id=f"{_version_group(doc.source_file)}::{index:04d}",
+                chunk_id=f"{_file_slug(doc.source_file)}::{index:04d}",
                 text=body,
                 source_file=doc.source_file,
                 locator=_locator(kind, index, buffer[0]),
@@ -165,7 +178,7 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
             index += 1
             chunks.append(
                 Chunk(
-                    chunk_id=f"{_version_group(doc.source_file)}::{index:04d}",
+                    chunk_id=f"{_file_slug(doc.source_file)}::{index:04d}",
                     text=unit,
                     source_file=doc.source_file,
                     locator=_locator(kind, index, unit),
@@ -200,7 +213,7 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
             index += 1
             chunks.append(
                 Chunk(
-                    chunk_id=f"{_version_group(doc.source_file)}::{index:04d}",
+                    chunk_id=f"{_file_slug(doc.source_file)}::{index:04d}",
                     text=body,
                     source_file=doc.source_file,
                     locator=_locator(kind, index, buffer[0]),

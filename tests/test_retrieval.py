@@ -63,6 +63,43 @@ def test_chunks_stay_within_the_configured_band():
         assert chunk.token_estimate <= settings.chunk_max_tokens
 
 
+def test_chunk_ids_are_unique_per_document_not_per_version_group():
+    """Two versions of one document must not share chunk ids.
+
+    They share a version group by design - that is what makes them compete for
+    supersession. But if the chunk id also comes from the group, the second write
+    upserts over the first and one version is destroyed at ingestion, leaving the
+    supersession filter nothing to filter. The dates in these names are the realistic
+    case: `_version_group` strips them, so both files reduce to "board-deck".
+    """
+    old = SourceDocument(source_file="Board_Deck_2025-11-02.txt",
+                         text="Slide 1: retention was 124 percent", doc_type="deck",
+                         document_date="2025-11-02")
+    new = SourceDocument(source_file="Board_Deck_2026-05-10.txt",
+                         text="Slide 1: retention was 118 percent", doc_type="deck",
+                         document_date="2026-05-10")
+    assert old.version_group == new.version_group == "board-deck"
+    old_ids = {c.chunk_id for c in chunk_document(old)}
+    new_ids = {c.chunk_id for c in chunk_document(new)}
+    assert old_ids and new_ids
+    assert not (old_ids & new_ids), "chunk ids collided; one version would overwrite the other"
+
+
+def test_both_versions_survive_ingestion_so_the_filter_can_act():
+    index = DataRoomIndex("collision-test")
+    for name, date, body in (
+        ("Board_Deck_2025-11-02.txt", "2025-11-02", "Slide 1: net revenue retention was 124 percent"),
+        ("Board_Deck_2026-05-10.txt", "2026-05-10", "Slide 1: net revenue retention was 118 percent"),
+    ):
+        index.add(chunk_document(SourceDocument(
+            source_file=name, text=body, doc_type="deck", document_date=date,
+            doc_tier=Tier.DEAL_CRITICAL)))
+    assert index.count() == 2, "both versions must be indexed for supersession to mean anything"
+    result = index.query("net revenue retention", similarity_floor=0.0)
+    assert {c.source_file for c in result.chunks} == {"Board_Deck_2026-05-10.txt"}
+    assert result.filtered_superseded, "the stale version should be reported as filtered"
+
+
 def test_version_group_collapses_drafts_and_finals():
     a = SourceDocument(source_file="MSA_v2_DRAFT.txt", text="x", doc_type="contract")
     b = SourceDocument(source_file="MSA_FINAL.txt", text="x", doc_type="contract")

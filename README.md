@@ -161,6 +161,11 @@ The left rail is the five-phase pipeline as a live stepper; the centre is tabbed
 | Draft | The generated deck, tags and sources inline |
 | **Trace** | Every Thought → Action → Observation step and every attributed state-store write |
 
+**Run pipeline** advances the phases in order and stops at any gate that needs a person,
+which makes it the spine of a live demo: it runs, it halts at the Phase-1 tie, you choose
+a framing, it carries on to the draft. The rail shows which agent is working; completed
+phases fill the spine.
+
 The Trace tab is the point of the whole thing. Reasoning steps record *why* the Analyst
 went where it went; state writes record *what* changed and which agent changed it.
 Filter to either, or read them interleaved. Nothing is anonymous and nothing is

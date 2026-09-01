@@ -303,6 +303,15 @@ def demo(
     store = StateStore()
     if reset:
         store.purge_engagement(engagement, agent="cdd demo", keep_audit=False)
+        # Drop the vector index too. Purging only the documents leaves the old
+        # embeddings behind, so a "reset" engagement silently retrieves from the
+        # previous run - including chunks whose ids no longer match anything.
+        from cdd_agent.retrieval.indexes import DataRoomIndex
+
+        try:
+            DataRoomIndex(engagement).purge()
+        except Exception:
+            pass  # nothing indexed yet
 
     console.print("[bold]Seeding the cross-engagement knowledge base[/bold]")
     total = sum(seed_knowledge_base().values())

@@ -57,6 +57,10 @@ class LoopStep:
     action: str
     observation: str
     tag: ConfidenceTag
+    # Versions the retrieval filter dropped before ranking. Recorded because a
+    # superseded-but-cited figure is the failure mode the filter exists to prevent,
+    # and a guard that works invisibly cannot be reviewed.
+    superseded_filtered: list = field(default_factory=list)
 
 
 @dataclass
@@ -234,6 +238,7 @@ class Analyst(Agent):
                     action=query,
                     observation=observation.render()[:600],
                     tag=item.tag if item else ConfidenceTag.NO_DATA,
+                    superseded_filtered=list(observation.superseded_filtered),
                 )
             )
         else:
@@ -353,6 +358,7 @@ class Analyst(Agent):
                     "action": step.action,
                     "observation": step.observation,
                     "tag": step.tag.value,
+                    "superseded_filtered": step.superseded_filtered,
                 },
                 agent=self.name,
             )

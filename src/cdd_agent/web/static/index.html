@@ -8,223 +8,270 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
 <style>
+/* Palette: cool slate neutrals, blue-biased rather than a default grey. Oxblood is
+   reserved for human-decision moments - the points where a person signs something.
+   Semantic tags live on their own scale; No Data is a muted slate, not a warning,
+   because a logged gap is a correct output. */
 :root {
-  --ground:#f5f6f8; --surface:#ffffff; --surface-2:#eef0f4; --sunken:#e7eaef;
-  --ink:#111721; --ink-2:#26303d;
-  --ink-muted:#5b6675; --ink-faint:#8b95a4;
-  --rule:#dbe0e8; --rule-strong:#c3cad6;
-  --accent:#7a2e39; --accent-soft:#f3e4e6; --accent-ink:#ffffff;
-  --confirmed:#1c6f55; --confirmed-bg:#e2f1eb;
-  --partial:#8a6011; --partial-bg:#f8eeda;
-  --contradicted:#9c352a; --contradicted-bg:#fae3df;
-  --nodata:#66717f; --nodata-bg:#e9ecf1;
-  --blocked:#8a4b12; --blocked-bg:#fbeadb;
-  --shadow:0 1px 2px rgba(17,23,33,.06), 0 8px 24px rgba(17,23,33,.05);
-  --radius:6px;
+  --ground:#f4f6f9; --surface:#ffffff; --surface-2:#eaeef4; --sunken:#e2e7ef;
+  --ink:#0d131c; --ink-2:#1f2a38; --ink-muted:#4d596a; --ink-faint:#788495;
+  --rule:#d6dce6; --rule-strong:#b6bfcd;
+  --accent:#7a2e39; --accent-2:#9c3d4a; --accent-soft:#f6e6e8; --accent-ink:#ffffff;
+  --confirmed:#146149; --confirmed-bg:#dcefe7;
+  --partial:#7d5509; --partial-bg:#f9edd6;
+  --contradicted:#912f24; --contradicted-bg:#fbe1dc;
+  --nodata:#5c6875; --nodata-bg:#e5e9ef;
+  --live:#0f5f8f; --live-bg:#dceaf4;
+  --shadow-sm:0 1px 2px rgba(13,19,28,.07);
+  --shadow:0 1px 2px rgba(13,19,28,.06), 0 10px 28px rgba(13,19,28,.07);
+  --radius:7px;
   --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","Consolas",monospace;
   --serif:"IBM Plex Serif",ui-serif,Georgia,"Times New Roman",serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground:#0e1218; --surface:#161b23; --surface-2:#1c222c; --sunken:#11161d;
-    --ink:#e9edf3; --ink-2:#cbd3de; --ink-muted:#98a3b3; --ink-faint:#6e7988;
-    --rule:#252c37; --rule-strong:#333c4a;
-    --accent:#d2868f; --accent-soft:#332024; --accent-ink:#1a1013;
-    --confirmed:#57bf99; --confirmed-bg:#152b25;
-    --partial:#dda63c; --partial-bg:#2e2716;
-    --contradicted:#ef8b7c; --contradicted-bg:#33201d;
-    --nodata:#8b95a4; --nodata-bg:#1d232c;
-    --blocked:#dc9a5a; --blocked-bg:#2d2318;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.28);
+    --ground:#0b0f15; --surface:#141a22; --surface-2:#1b222c; --sunken:#0f141b;
+    --ink:#eef2f7; --ink-2:#d3dbe5; --ink-muted:#9fabbb; --ink-faint:#76828f;
+    --rule:#242c37; --rule-strong:#36404e;
+    --accent:#e0949c; --accent-2:#eaa6ad; --accent-soft:#2e1d21; --accent-ink:#1a0f12;
+    --confirmed:#5fc9a2; --confirmed-bg:#122a23;
+    --partial:#e5ae45; --partial-bg:#2c2514;
+    --contradicted:#f49585; --contradicted-bg:#301d1a;
+    --nodata:#939daa; --nodata-bg:#1a212a;
+    --live:#6fb6e2; --live-bg:#12232f;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.34);
   }
 }
 :root[data-theme="dark"] {
-  --ground:#0e1218; --surface:#161b23; --surface-2:#1c222c; --sunken:#11161d;
-  --ink:#e9edf3; --ink-2:#cbd3de; --ink-muted:#98a3b3; --ink-faint:#6e7988;
-  --rule:#252c37; --rule-strong:#333c4a;
-  --accent:#d2868f; --accent-soft:#332024; --accent-ink:#1a1013;
-  --confirmed:#57bf99; --confirmed-bg:#152b25;
-  --partial:#dda63c; --partial-bg:#2e2716;
-  --contradicted:#ef8b7c; --contradicted-bg:#33201d;
-  --nodata:#8b95a4; --nodata-bg:#1d232c;
-  --blocked:#dc9a5a; --blocked-bg:#2d2318;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.28);
+  --ground:#0b0f15; --surface:#141a22; --surface-2:#1b222c; --sunken:#0f141b;
+  --ink:#eef2f7; --ink-2:#d3dbe5; --ink-muted:#9fabbb; --ink-faint:#76828f;
+  --rule:#242c37; --rule-strong:#36404e;
+  --accent:#e0949c; --accent-2:#eaa6ad; --accent-soft:#2e1d21; --accent-ink:#1a0f12;
+  --confirmed:#5fc9a2; --confirmed-bg:#122a23;
+  --partial:#e5ae45; --partial-bg:#2c2514;
+  --contradicted:#f49585; --contradicted-bg:#301d1a;
+  --nodata:#939daa; --nodata-bg:#1a212a;
+  --live:#6fb6e2; --live-bg:#12232f;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.34);
 }
 
 *,*::before,*::after { box-sizing:border-box; }
 html,body { height:100%; }
 body {
   margin:0; background:var(--ground); color:var(--ink);
-  font-family:var(--sans); font-size:14px; line-height:1.5;
-  -webkit-font-smoothing:antialiased;
+  font-family:var(--sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
 button,input,select,textarea { font:inherit; color:inherit; }
 a { color:var(--accent); }
-:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
-@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
 
-/* ---------------------------------------------------------------- shell */
-.app { display:grid; grid-template-columns:284px minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); height:100vh; }
+/* Motion is used only to show change - a row arriving, a phase completing. It is the
+   difference between a screen recording that reads as alive and one that reads as a
+   slideshow. All of it is off when the viewer asks for reduced motion. */
+@keyframes riseIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes pulseRing { 0% { box-shadow:0 0 0 0 var(--live); } 70% { box-shadow:0 0 0 7px transparent; } 100% { box-shadow:0 0 0 0 transparent; } }
+@keyframes sweep { from { background-position:120% 0; } to { background-position:-40% 0; } }
+@keyframes spin { to { transform:rotate(360deg); } }
+.rise { animation:riseIn .32s cubic-bezier(.2,.7,.3,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation:none !important; transition:none !important; }
+}
+
+/* ------------------------------------------------------------------- shell */
+.app { display:grid; grid-template-columns:300px minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr); height:100vh; }
 header {
-  grid-column:1/-1; display:flex; align-items:center; gap:16px;
-  padding:0 20px; height:56px; background:var(--surface);
+  grid-column:1/-1; display:flex; align-items:center; gap:14px;
+  padding:0 22px; height:58px; background:var(--surface);
   border-bottom:1px solid var(--rule);
 }
-.brand { display:flex; align-items:baseline; gap:10px; }
-.brand h1 { margin:0; font-size:15px; font-weight:600; letter-spacing:-.01em; }
-.brand .sub { font-family:var(--mono); font-size:11px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase; }
+.brand { display:flex; align-items:center; gap:11px; }
+.mark {
+  width:26px; height:26px; border-radius:6px; display:grid; place-items:center;
+  background:var(--accent); color:var(--accent-ink);
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:-.03em;
+}
+.brand h1 { margin:0; font-size:16px; font-weight:600; letter-spacing:-.015em; }
 .spacer { flex:1; }
-.meta { display:flex; align-items:center; gap:8px; }
+.meta { display:flex; align-items:center; gap:9px; }
 
-.rail { background:var(--surface); border-right:1px solid var(--rule); overflow-y:auto; padding:16px 0 24px; }
+/* Engagement bar - gives the recording a subject line instead of a bare toolbar. */
+.subject {
+  grid-column:1/-1; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:11px 22px; background:var(--surface-2); border-bottom:1px solid var(--rule);
+}
+.subject h2 { margin:0; font-family:var(--serif); font-size:19px; letter-spacing:-.01em; }
+.subject .thesis { color:var(--ink-muted); font-size:13.5px; max-width:62ch; }
+.subject .facts { font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); letter-spacing:.02em; }
+
+.rail { background:var(--surface); border-right:1px solid var(--rule); overflow-y:auto; padding:18px 0 26px; }
 main { overflow:hidden; display:flex; flex-direction:column; min-width:0; }
 
-/* -------------------------------------------------------------- controls */
+/* ---------------------------------------------------------------- controls */
 .btn {
-  display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px; cursor:pointer;
   background:var(--surface); color:var(--ink); border:1px solid var(--rule-strong);
-  border-radius:var(--radius); padding:5px 11px; font-size:13px; font-weight:500;
-  transition:background .12s ease, border-color .12s ease;
+  border-radius:var(--radius); padding:6px 12px; font-size:13.5px; font-weight:500;
+  transition:background .13s ease, border-color .13s ease, transform .08s ease;
 }
 .btn:hover:not(:disabled) { background:var(--surface-2); border-color:var(--ink-faint); }
-.btn:disabled { opacity:.42; cursor:not-allowed; }
-.btn-primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
-.btn-primary:hover:not(:disabled) { background:var(--accent); filter:brightness(1.08); border-color:var(--accent); }
-.btn-sm { padding:3px 8px; font-size:12px; }
+.btn:active:not(:disabled) { transform:translateY(1px); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+.btn-primary:hover:not(:disabled) { background:var(--accent-2); border-color:var(--accent-2); }
+.btn-sm { padding:4px 9px; font-size:12.5px; }
+.btn-wide { width:100%; }
 input[type=text] {
   background:var(--surface); border:1px solid var(--rule-strong); border-radius:var(--radius);
-  padding:5px 9px; min-width:0;
+  padding:6px 10px; min-width:0; font-size:13.5px;
 }
-select { background:var(--surface); border:1px solid var(--rule-strong); border-radius:var(--radius); padding:4px 8px; }
+input[type=text]::placeholder { color:var(--ink-faint); }
+select { background:var(--surface); border:1px solid var(--rule-strong); border-radius:var(--radius); padding:5px 9px; font-size:13.5px; }
 
-/* ------------------------------------------------------------------ pills */
+/* ------------------------------------------------------------------- pills */
 .pill {
   display:inline-flex; align-items:center; gap:5px; border-radius:999px;
-  padding:2px 9px; font-size:11px; font-weight:600; line-height:1.7;
-  font-family:var(--mono); letter-spacing:.02em; white-space:nowrap;
+  padding:2px 10px; font-size:11.5px; font-weight:600; line-height:1.75;
+  font-family:var(--mono); letter-spacing:.015em; white-space:nowrap;
 }
 .pill.confirmed { background:var(--confirmed-bg); color:var(--confirmed); }
 .pill.partial { background:var(--partial-bg); color:var(--partial); }
 .pill.contradicted { background:var(--contradicted-bg); color:var(--contradicted); }
 .pill.nodata { background:var(--nodata-bg); color:var(--nodata); }
-.pill.blocked { background:var(--blocked-bg); color:var(--blocked); }
 .pill.neutral { background:var(--sunken); color:var(--ink-muted); }
 .pill.accent { background:var(--accent-soft); color:var(--accent); }
+.pill.live { background:var(--live-bg); color:var(--live); }
 
-/* ------------------------------------------------------------- phase rail */
-.rail h2 {
-  margin:0 0 10px; padding:0 20px; font-size:10px; font-weight:600;
-  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint);
-  font-family:var(--mono);
+/* -------------------------------------------------------------- phase rail */
+.rail h2, .rail-section h3 {
+  font-family:var(--mono); font-size:10.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint);
 }
-.steps { list-style:none; margin:0 0 20px; padding:0; }
-.step { position:relative; padding:9px 20px 9px 44px; }
+.rail h2 { margin:0 0 4px; padding:0 22px; }
+.rail .progress-note { padding:0 22px; margin:0 0 12px; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+.steps { list-style:none; margin:0 0 22px; padding:0; }
+.step { position:relative; padding:10px 22px 10px 48px; }
+/* The spine fills as the pipeline advances - the pipeline is the story, so it should
+   visibly progress rather than just recolour dots. */
 .step::before {
-  content:""; position:absolute; left:25px; top:20px; width:7px; height:7px;
-  border-radius:50%; background:var(--rule-strong); box-shadow:0 0 0 3px var(--surface);
+  content:""; position:absolute; left:26px; top:19px; width:9px; height:9px;
+  border-radius:50%; background:var(--surface); border:2px solid var(--rule-strong);
+  z-index:1; transition:background .2s ease, border-color .2s ease;
 }
-.step::after { content:""; position:absolute; left:28px; top:27px; bottom:-9px; width:1px; background:var(--rule); }
+.step::after { content:""; position:absolute; left:30px; top:28px; bottom:-10px; width:2px; background:var(--rule); }
 .step:last-child::after { display:none; }
-.step[data-state=done]::before { background:var(--confirmed); }
-.step[data-state=blocked]::before { background:var(--accent); }
-.step[data-state=available]::before { background:var(--partial); }
+.step[data-state=done]::before { background:var(--confirmed); border-color:var(--confirmed); }
+.step[data-state=done]::after { background:var(--confirmed); opacity:.4; }
+.step[data-state=blocked]::before { background:var(--accent); border-color:var(--accent); }
+.step[data-state=available]::before { border-color:var(--partial); }
+.step[data-running=true]::before { background:var(--live); border-color:var(--live); animation:pulseRing 1.1s ease-out infinite; }
+.step[data-running=true] { background:linear-gradient(90deg,transparent,var(--live-bg),transparent); background-size:60% 100%; background-repeat:no-repeat; animation:sweep 1.5s linear infinite; }
 .step-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.step-name { font-weight:600; font-size:13px; }
-.step-phase { font-family:var(--mono); font-size:10px; color:var(--ink-faint); }
-.step-agent { font-size:12px; color:var(--ink-muted); }
-.step-out { font-size:11.5px; color:var(--ink-faint); }
-.step .btn { margin-top:6px; }
-.rail-section { padding:0 20px; margin-bottom:18px; }
-.rail-section h3 { margin:0 0 6px; font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); font-weight:600; }
+.step-name { font-weight:600; font-size:14px; }
+.step-phase { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); }
+.step-agent { font-size:12.5px; color:var(--ink-muted); }
+.step-out { font-size:12px; color:var(--ink-faint); }
+.step .btn { margin-top:7px; }
+.rail-section { padding:0 22px; margin-bottom:20px; }
+.rail-section h3 { margin:0 0 7px; }
+.rail-section .hint { font-size:11.5px; color:var(--ink-faint); margin:7px 0 0; line-height:1.45; }
 
-/* ------------------------------------------------------------------- tabs */
-.tabbar { display:flex; gap:2px; padding:0 20px; background:var(--surface); border-bottom:1px solid var(--rule); }
+/* --------------------------------------------------------------------- tabs */
+.tabbar { display:flex; gap:2px; padding:0 22px; background:var(--surface); border-bottom:1px solid var(--rule); overflow-x:auto; }
 .tab {
-  appearance:none; background:none; border:0; cursor:pointer; padding:11px 12px 9px;
-  font-size:13px; font-weight:500; color:var(--ink-muted);
-  border-bottom:2px solid transparent; display:flex; align-items:center; gap:6px;
+  appearance:none; background:none; border:0; cursor:pointer; padding:12px 13px 10px;
+  font-size:13.5px; font-weight:500; color:var(--ink-muted); white-space:nowrap;
+  border-bottom:2px solid transparent; display:flex; align-items:center; gap:7px;
 }
 .tab:hover { color:var(--ink); }
 .tab[aria-selected=true] { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
-.tab .count { font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
-.panel { overflow-y:auto; padding:20px; flex:1; }
-.panel[hidden] { display:none; }
+.tab .count { font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+.panel { overflow-y:auto; padding:22px; flex:1; }
 
-/* ------------------------------------------------------------------ cards */
-.card { background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius); box-shadow:var(--shadow); }
-.card + .card { margin-top:14px; }
-.card-head { padding:12px 16px; border-bottom:1px solid var(--rule); display:flex; align-items:center; gap:10px; }
-.card-head h3 { margin:0; font-size:13.5px; font-weight:600; }
-.card-body { padding:14px 16px; }
+/* -------------------------------------------------------------------- cards */
+.card { background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+.card + .card { margin-top:16px; }
+.card-head { padding:13px 17px; border-bottom:1px solid var(--rule); display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
+.card-head h3 { margin:0; font-size:14.5px; font-weight:600; }
+.card-body { padding:15px 17px; }
 .muted { color:var(--ink-muted); }
 .faint { color:var(--ink-faint); }
 .mono { font-family:var(--mono); }
-.grid-2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
-.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:var(--radius); overflow:hidden; }
-.stat { background:var(--surface); padding:12px 14px; }
-.stat .k { font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); }
-.stat .v { font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin-top:2px; }
-.stat .d { font-size:11.5px; color:var(--ink-muted); }
+.grid-2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:var(--radius); overflow:hidden; }
+.stat { background:var(--surface); padding:13px 16px; }
+.stat .k { font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); }
+.stat .v { font-size:27px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.025em; margin-top:1px; line-height:1.15; }
+.stat .d { font-size:12px; color:var(--ink-muted); }
 
-/* ----------------------------------------------------------------- tables */
+/* ------------------------------------------------------------------- tables */
 .tablewrap { overflow-x:auto; }
-table { border-collapse:collapse; width:100%; font-size:13px; }
-th { text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; padding:8px 12px; border-bottom:1px solid var(--rule); white-space:nowrap; }
-td { padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; }
+table { border-collapse:collapse; width:100%; font-size:13.5px; }
+th { text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; padding:9px 14px; border-bottom:1px solid var(--rule); white-space:nowrap; background:var(--surface); }
+td { padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top; }
 tr:last-child td { border-bottom:0; }
+tbody tr:hover { background:var(--surface-2); }
 td.num { font-variant-numeric:tabular-nums; text-align:right; font-family:var(--mono); }
-td.id { font-family:var(--mono); font-size:12px; color:var(--ink-muted); white-space:nowrap; }
+td.id { font-family:var(--mono); font-size:12.5px; color:var(--ink-muted); white-space:nowrap; }
 
-/* ------------------------------------------------------------------ gate */
-.gate { border:1px solid var(--accent); border-left-width:3px; background:var(--accent-soft); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
-.gate h3 { margin:0 0 4px; font-size:13.5px; color:var(--accent); display:flex; align-items:center; gap:8px; }
-.gate p { margin:0 0 6px; color:var(--ink-2); }
-.branches { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:14px; }
-.branch { background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius); padding:13px 14px; display:flex; flex-direction:column; gap:9px; }
-.branch.is-selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
-.branch.is-pruned { opacity:.72; }
-.branch h4 { margin:0; font-size:13.5px; }
-.scores { display:grid; grid-template-columns:1fr auto; gap:2px 10px; font-size:12px; }
+/* --------------------------------------------------------------------- gate */
+.gate { border:1px solid var(--accent); border-left-width:4px; background:var(--accent-soft); border-radius:var(--radius); padding:15px 18px; margin-bottom:18px; }
+.gate h3 { margin:0 0 5px; font-size:14.5px; color:var(--accent); display:flex; align-items:center; gap:9px; }
+.gate p { margin:0 0 6px; color:var(--ink-2); max-width:78ch; }
+.branches { display:grid; grid-template-columns:repeat(auto-fit,minmax(292px,1fr)); gap:14px; }
+.branch { background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius); padding:15px 16px; display:flex; flex-direction:column; gap:11px; box-shadow:var(--shadow-sm); transition:box-shadow .15s ease, border-color .15s ease; }
+.branch:hover { box-shadow:var(--shadow); }
+.branch.is-selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), var(--shadow); }
+.branch.is-pruned { opacity:.66; }
+.branch h4 { margin:0; font-size:15px; }
+.branch .score-big { font-family:var(--mono); font-size:25px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.scores { display:grid; grid-template-columns:1fr auto; gap:3px 12px; font-size:12.5px; margin:0; }
 .scores dt { color:var(--ink-muted); }
 .scores dd { margin:0; font-family:var(--mono); font-variant-numeric:tabular-nums; }
-.hyps { margin:0; padding-left:16px; font-size:12.5px; color:var(--ink-2); display:flex; flex-direction:column; gap:3px; }
+/* A bar behind each criterion makes three near-identical averages legible at a glance,
+   which is the whole reason this screen is asking for a decision. */
+.bar { position:relative; height:3px; background:var(--sunken); border-radius:2px; grid-column:1/-1; margin:-1px 0 3px; }
+.bar span { position:absolute; inset:0 auto 0 0; background:var(--ink-faint); border-radius:2px; }
+.hyps { margin:0; padding-left:17px; font-size:13px; color:var(--ink-2); display:flex; flex-direction:column; gap:4px; }
 
-/* ----------------------------------------------------------------- trace */
+/* -------------------------------------------------------------------- trace */
 .trace-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
-.trace-list { display:flex; flex-direction:column; gap:8px; }
-.tr {
-  background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--rule-strong);
-  border-radius:var(--radius); padding:10px 13px;
-}
+.trace-list { display:flex; flex-direction:column; gap:9px; }
+.tr { background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--rule-strong); border-radius:var(--radius); padding:11px 15px; box-shadow:var(--shadow-sm); }
 .tr[data-kind=react] { border-left-color:var(--partial); }
 .tr[data-kind=escalation] { border-left-color:var(--accent); }
 .tr[data-kind=write] { border-left-color:var(--rule-strong); }
-.tr-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
+.tr-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:9px; font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); }
 .tr-agent { color:var(--ink-2); font-weight:600; }
-.tr-body { margin-top:6px; display:flex; flex-direction:column; gap:5px; font-size:12.5px; }
-.tr-row { display:grid; grid-template-columns:76px minmax(0,1fr); gap:10px; }
-.tr-k { font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px; }
+.tr-body { margin-top:7px; display:flex; flex-direction:column; gap:6px; font-size:13px; }
+.tr-row { display:grid; grid-template-columns:88px minmax(0,1fr); gap:11px; }
+.tr-k { font-family:var(--mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px; }
 .tr-v { color:var(--ink-2); white-space:pre-wrap; word-break:break-word; }
-.empty { padding:36px 20px; text-align:center; color:var(--ink-faint); }
-.empty strong { display:block; color:var(--ink-muted); font-weight:600; margin-bottom:3px; }
+.tr-filtered { margin-top:8px; font-size:12.5px; color:var(--confirmed); background:var(--confirmed-bg); border-radius:5px; padding:7px 11px; }
 
-/* ------------------------------------------------------------------ misc */
-.toast { position:fixed; right:18px; bottom:18px; z-index:50; display:flex; flex-direction:column; gap:8px; max-width:420px; }
-.toast > div { background:var(--surface); border:1px solid var(--rule-strong); border-left:3px solid var(--accent); border-radius:var(--radius); padding:10px 13px; box-shadow:var(--shadow); font-size:13px; }
+.empty { padding:48px 22px; text-align:center; color:var(--ink-faint); }
+.empty strong { display:block; color:var(--ink-muted); font-weight:600; margin-bottom:4px; font-size:15px; }
+.notice { border:1px solid var(--rule-strong); border-left:4px solid var(--contradicted); background:var(--surface); border-radius:var(--radius); padding:14px 17px; margin-bottom:16px; }
+.notice h3 { margin:0 0 5px; font-size:14.5px; color:var(--contradicted); }
+.notice pre { margin:8px 0 0; font-family:var(--mono); font-size:12px; white-space:pre-wrap; color:var(--ink-2); }
+
+/* -------------------------------------------------------------------- misc */
+.toast { position:fixed; right:20px; bottom:20px; z-index:50; display:flex; flex-direction:column; gap:9px; max-width:440px; }
+.toast > div { background:var(--surface); border:1px solid var(--rule-strong); border-left:4px solid var(--accent); border-radius:var(--radius); padding:11px 15px; box-shadow:var(--shadow); font-size:13.5px; animation:riseIn .25s ease both; }
 .toast > div.ok { border-left-color:var(--confirmed); }
 .toast > div.err { border-left-color:var(--contradicted); }
-.busy { display:inline-block; width:11px; height:11px; border:2px solid var(--rule-strong); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-.doc { font-family:var(--serif); }
-.doc h2 { font-family:var(--serif); font-size:19px; margin:22px 0 4px; }
+.busy { display:inline-block; width:12px; height:12px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+.doc h2 { font-family:var(--serif); font-size:21px; margin:26px 0 5px; letter-spacing:-.01em; }
 .doc h2:first-child { margin-top:0; }
-.doc .headline { font-family:var(--sans); font-weight:600; color:var(--ink); margin:0 0 10px; }
-.claim { border-left:2px solid var(--rule); padding:2px 0 2px 12px; margin:0 0 9px; font-family:var(--sans); font-size:13px; }
-.claim .src { display:block; font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-top:3px; }
-@media (max-width:900px) {
-  .app { grid-template-columns:1fr; grid-template-rows:auto auto minmax(0,1fr); }
-  .rail { border-right:0; border-bottom:1px solid var(--rule); max-height:220px; }
+.doc .headline { font-weight:600; color:var(--ink); margin:0 0 12px; font-size:15.5px; max-width:70ch; }
+.claim { border-left:2px solid var(--rule); padding:3px 0 3px 13px; margin:0 0 10px; font-size:13.5px; max-width:76ch; }
+.claim .src { display:block; font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); margin-top:4px; }
+@media (max-width:940px) {
+  .app { grid-template-columns:1fr; grid-template-rows:auto auto auto minmax(0,1fr); }
+  .rail { border-right:0; border-bottom:1px solid var(--rule); max-height:250px; }
 }
 </style>
 </head>
@@ -232,32 +279,39 @@ td.id { font-family:var(--mono); font-size:12px; color:var(--ink-muted); white-s
 <div class="app">
   <header>
     <div class="brand">
-      <h1>CDD Agent</h1>
-      <span class="sub" id="engLabel">no engagement</span>
+      <span class="mark">CDD</span>
+      <h1>Commercial Due Diligence Agent</h1>
     </div>
     <div class="spacer"></div>
     <div class="meta">
       <span class="pill neutral" id="modeBadge">…</span>
       <select id="engSelect" aria-label="Engagement"></select>
-      <input type="text" id="engNew" placeholder="new engagement id" size="16">
+      <input type="text" id="engNew" placeholder="new engagement" size="14">
       <button class="btn btn-sm" id="engCreate">Open</button>
       <button class="btn btn-sm" id="exportBtn">Export report</button>
-      <button class="btn btn-sm" id="themeBtn" aria-label="Toggle theme">◐</button>
+      <button class="btn btn-sm" id="themeBtn" aria-label="Toggle light and dark">◐</button>
     </div>
   </header>
 
+  <div class="subject" id="subject"></div>
+
   <nav class="rail" aria-label="Pipeline">
     <h2>Pipeline</h2>
+    <p class="progress-note" id="progressNote">—</p>
+    <div class="rail-section">
+      <button class="btn btn-primary btn-wide" id="runAllBtn">Run pipeline</button>
+      <p class="hint">Advances each phase in turn and stops at any gate that needs a person.</p>
+    </div>
     <ul class="steps" id="steps"></ul>
     <div class="rail-section">
       <h3>Data room</h3>
       <input type="text" id="dataRoom" placeholder="path to data room" style="width:100%">
-      <button class="btn btn-sm" id="ingestBtn" style="margin-top:6px">Ingest</button>
+      <button class="btn btn-sm" id="ingestBtn" style="margin-top:7px">Ingest</button>
     </div>
     <div class="rail-section">
       <h3>Gate signatory</h3>
       <input type="text" id="approver" placeholder="your name" style="width:100%">
-      <p class="faint" style="font-size:11px;margin:6px 0 0">Recorded in the artifact provenance and the audit trail.</p>
+      <p class="hint">Written into the artifact provenance and the audit trail.</p>
     </div>
   </nav>
 
@@ -270,28 +324,32 @@ td.id { font-family:var(--mono); font-size:12px; color:var(--ink-muted); white-s
 
 <script>
 "use strict";
-const S = { eng:null, snap:null, tab:"overview", busy:false, traceFilter:"all" };
+const S = { eng:null, snap:null, tab:"overview", busy:null, traceFilter:"all",
+            running:null, fatal:null };
 const $ = (id) => document.getElementById(id);
 
 const TABS = [
   ["overview","Overview"], ["hypotheses","Hypotheses"], ["requests","Data request"],
   ["evidence","Evidence"], ["risks","Risks & gaps"], ["draft","Draft"], ["trace","Trace"],
 ];
-
 const TAG_CLASS = {
   "Confirmed":"confirmed", "Partially Confirmed":"partial",
   "Contradicted":"contradicted", "No Data":"nodata",
 };
+const PHASE_LABEL = {intake:"intake", thesis:"Phase 1", request:"Phase 2",
+  ingest:"ingestion", analyze:"the evidence loop", audit:"the risk audit",
+  synthesize:"synthesis"};
 
 function esc(v){ return String(v==null?"":v).replace(/[&<>"']/g, c => (
   {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function pct(x){ return x==null ? "—" : Math.round(x*100) + "%"; }
 
 function toast(msg, kind){
   const el = document.createElement("div");
   el.className = kind || "";
   el.textContent = msg;
   $("toast").appendChild(el);
-  setTimeout(() => el.remove(), kind === "err" ? 9000 : 4200);
+  setTimeout(() => el.remove(), kind === "err" ? 10000 : 4600);
 }
 
 async function api(path, opts){
@@ -299,19 +357,28 @@ async function api(path, opts){
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch(e) { data = {detail:text}; }
-  if(!res.ok) throw new Error((data && data.detail) || res.statusText);
+  if(!res.ok){
+    const err = new Error((data && data.detail) || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
-async function withBusy(label, fn){
-  if(S.busy) return;
-  S.busy = true; render();
+async function withBusy(id, label, fn){
+  if(S.busy) return null;
+  S.busy = id; S.running = id; render();
   try { const out = await fn(); await refresh(); return out; }
-  catch(err){ toast(label + " — " + err.message, "err"); }
-  finally { S.busy = false; render(); }
+  catch(err){
+    if(err.status === 503) S.fatal = err.message;
+    else toast(label + " — " + err.message, "err");
+    await refresh().catch(() => {});
+    return null;
+  }
+  finally { S.busy = null; S.running = null; render(); }
 }
 
-/* ------------------------------------------------------------ data loading */
+/* -------------------------------------------------------------- data loading */
 async function boot(){
   const info = await api("/api/engagements");
   $("modeBadge").textContent = info.offline ? "offline mode" : ("model " + info.model);
@@ -336,72 +403,138 @@ async function boot(){
 
 async function refresh(){
   if(!S.eng){ render(); return; }
-  $("engLabel").textContent = S.eng;
-  // Keep the picker in step with the loaded engagement, however it was changed.
   if($("engSelect").value !== S.eng) $("engSelect").value = S.eng;
-  S.snap = await api("/api/engagements/" + encodeURIComponent(S.eng));
+  try {
+    S.snap = await api("/api/engagements/" + encodeURIComponent(S.eng));
+    S.fatal = null;
+  } catch(err){
+    if(err.status === 503){ S.fatal = err.message; S.snap = null; }
+    else throw err;
+  }
   render();
 }
 
-/* ------------------------------------------------------------------ render */
-function render(){
-  renderSteps();
-  renderTabs();
-  renderPanel();
+/* -------------------------------------------------------------------- render */
+function render(){ renderSubject(); renderSteps(); renderTabs(); renderPanel(); }
+
+function renderSubject(){
+  const s = S.snap, el = $("subject");
+  if(!s || !s.profile){
+    el.innerHTML = '<h2>No engagement loaded</h2>' +
+      '<span class="thesis">Open an engagement, then load a Deal Profile Brief from the rail.</span>';
+    return;
+  }
+  const p = s.profile;
+  el.innerHTML =
+    '<h2>' + esc(p.target.legal_name) + '</h2>' +
+    '<span class="thesis">' + esc(p.thesis.one_sentence_thesis) + '</span>' +
+    '<span class="spacer"></span>' +
+    '<span class="facts">' + esc(p.sector.sub_sector) + ' · ' + esc(p.buyer.buyer_type) +
+    (p.target.ic_date ? ' · IC ' + esc(p.target.ic_date) : "") + '</span>';
 }
 
 function renderSteps(){
   const ul = $("steps");
   ul.innerHTML = "";
   const phases = (S.snap && S.snap.phases) || [];
+  const done = phases.filter(p => p.state === "done").length;
+  $("progressNote").textContent = phases.length
+    ? done + " of " + phases.length + " phases complete" : "—";
+  const runBtn = $("runAllBtn");
+  runBtn.disabled = !!S.busy || !S.snap || !S.snap.profile;
+  runBtn.innerHTML = S.busy
+    ? '<span class="busy"></span> Running ' + esc(PHASE_LABEL[S.running] || "")
+    : (phases.length && done === phases.length ? "Re-run pipeline" : "Run pipeline");
+
   phases.forEach(p => {
     const li = document.createElement("li");
     li.className = "step";
     li.dataset.state = p.state;
-    const canRun = p.state === "available" || p.state === "done";
+    if(S.running === p.id) li.dataset.running = "true";
     li.innerHTML =
       '<div class="step-head"><span class="step-name">' + esc(p.label) + '</span>' +
       '<span class="step-phase">' + esc(p.phase) + '</span></div>' +
       '<div class="step-agent">' + esc(p.agent) + '</div>' +
       '<div class="step-out">' + esc(p.output) + '</div>';
-    if(p.state === "blocked"){
-      const pill = document.createElement("span");
-      pill.className = "pill blocked"; pill.textContent = "awaiting decision";
-      pill.style.marginTop = "6px"; pill.style.display = "inline-flex";
+    if(S.running === p.id){
+      li.appendChild(pillEl("live", "working"));
+    } else if(p.state === "blocked"){
+      const pill = pillEl("accent", "awaiting your decision");
+      pill.style.cursor = "pointer";
+      pill.onclick = () => { S.tab = "hypotheses"; render(); };
       li.appendChild(pill);
-    } else if(p.id !== "intake"){
-      const b = document.createElement("button");
-      b.className = "btn btn-sm";
-      b.textContent = p.state === "done" ? "Re-run" : "Run";
-      b.disabled = !canRun || S.busy;
-      b.onclick = () => runPhase(p.id);
-      li.appendChild(b);
+    } else if(p.id === "intake"){
+      li.appendChild(mkBtn(p.state === "done" ? "Reload profile" : "Load demo profile",
+        () => withBusy("intake", "Intake", () => api(
+          "/api/engagements/" + encodeURIComponent(S.eng) + "/intake",
+          {method:"POST", body:JSON.stringify({use_demo_fixture:true})}))));
     } else {
-      const b = document.createElement("button");
-      b.className = "btn btn-sm";
-      b.textContent = p.state === "done" ? "Reload profile" : "Load demo profile";
-      b.disabled = S.busy;
-      b.onclick = () => withBusy("Intake", () => api(
-        "/api/engagements/" + encodeURIComponent(S.eng) + "/intake",
-        {method:"POST", body:JSON.stringify({use_demo_fixture:true})}));
-      li.appendChild(b);
+      const canRun = p.state === "available" || p.state === "done";
+      li.appendChild(mkBtn(p.state === "done" ? "Re-run" : "Run",
+        () => runPhase(p.id), !canRun));
     }
     ul.appendChild(li);
   });
 }
 
+function pillEl(cls, text){
+  const el = document.createElement("span");
+  el.className = "pill " + cls; el.textContent = text;
+  el.style.cssText += "margin-top:7px;display:inline-flex";
+  return el;
+}
+function mkBtn(label, onclick, disabled){
+  const b = document.createElement("button");
+  b.className = "btn btn-sm"; b.textContent = label;
+  b.disabled = !!disabled || !!S.busy; b.onclick = onclick;
+  return b;
+}
+
 function runPhase(id){
   const base = "/api/engagements/" + encodeURIComponent(S.eng) + "/";
-  const labels = {thesis:"Phase 1", request:"Phase 2", analyze:"Evidence loop",
-                  audit:"Risk audit", synthesize:"Synthesis"};
-  return withBusy(labels[id] || id, async () => {
+  if(id === "ingest"){
+    const path = $("dataRoom").value.trim();
+    if(!path){
+      toast("Set the data-room path in the rail before ingesting.", "err");
+      return null;
+    }
+    return withBusy("ingest", "Ingestion", () => api(base + "ingest",
+      {method:"POST", body:JSON.stringify({path})}).then(r => { toast(r.summary, "ok"); return r; }));
+  }
+  return withBusy(id, PHASE_LABEL[id] || id, async () => {
     const out = await api(base + id, {method:"POST"});
-    if(id === "thesis" && out.requires_human) toast("Phase 1 needs a human decision — see Hypotheses.");
-    else if(id === "analyze") toast(out.steps + " ReAct steps, " + out.gaps + " gap(s) logged.", "ok");
-    else if(id === "audit") toast(out.risks + " risk(s) raised, coverage " + Math.round(out.coverage*100) + "%.", "ok");
-    else if(id === "synthesize") toast("Draft written, groundedness " + Math.round(out.groundedness*100) + "%.", "ok");
+    if(id === "thesis" && out.requires_human) toast("Three framings scored within the tie band — your call.");
+    else if(id === "analyze") toast(out.steps + " reasoning steps · " + out.gaps + " gap(s) logged", "ok");
+    else if(id === "audit") toast(out.risks + " risk(s) raised · taxonomy coverage " + pct(out.coverage), "ok");
+    else if(id === "synthesize") toast("Draft written · groundedness " + pct(out.groundedness), "ok");
     return out;
   });
+}
+
+/* Sequential run that stops at gates - the spine of a live demo. */
+async function runAll(){
+  if(S.busy) return;
+  for(const id of ["thesis","request","ingest","analyze","audit","synthesize"]){
+    const phase = (S.snap.phases || []).find(p => p.id === id);
+    if(!phase) continue;
+    // Advance, do not redo. Re-running Phase 1 would regenerate the search and throw
+    // away the framing a person already signed for.
+    if(phase.state === "done") continue;
+    if(phase.state === "blocked"){
+      toast("Stopped at the Phase-1 gate — choose a framing to continue.");
+      S.tab = "hypotheses"; render();
+      return;
+    }
+    const out = await runPhase(id);
+    if(out === null) return;                       // an error already surfaced
+    if(id === "thesis" && out.requires_human){
+      S.tab = "hypotheses"; render();
+      return;
+    }
+    await new Promise(r => setTimeout(r, 340));    // let each phase land visibly
+  }
+  S.tab = "draft"; render();
+  toast("Pipeline complete — the draft still needs partner review.", "ok");
 }
 
 function renderTabs(){
@@ -418,11 +551,11 @@ function renderTabs(){
   };
   TABS.forEach(([id, label]) => {
     const b = document.createElement("button");
-    b.className = "tab"; b.role = "tab";
+    b.className = "tab"; b.setAttribute("role","tab");
     b.setAttribute("aria-selected", String(S.tab === id));
     b.innerHTML = esc(label) + (counts[id] ? ' <span class="count">' + counts[id] + '</span>' : "");
-    if(id === "hypotheses" && s && s.search && s.search.requires_human && !(s.tree)){
-      b.innerHTML += ' <span class="pill blocked" style="margin-left:2px">gate</span>';
+    if(id === "hypotheses" && s && s.search && s.search.requires_human && !s.tree){
+      b.innerHTML += ' <span class="pill accent">gate</span>';
     }
     b.onclick = () => { S.tab = id; render(); };
     bar.appendChild(b);
@@ -431,6 +564,12 @@ function renderTabs(){
 
 function renderPanel(){
   const p = $("panel");
+  if(S.fatal){
+    p.innerHTML = '<div class="notice"><h3>The vector index cannot be opened</h3>' +
+      '<p class="muted" style="margin:0">Chroma cannot read its own persisted format across ' +
+      'versions. This is the guard reporting it, not a crash.</p><pre>' + esc(S.fatal) + '</pre></div>';
+    return;
+  }
   if(!S.snap){ p.innerHTML = '<div class="empty"><strong>No engagement loaded</strong>Create one above, then load the demo profile.</div>'; return; }
   const fns = {overview:viewOverview, hypotheses:viewHypotheses, requests:viewRequests,
                evidence:viewEvidence, risks:viewRisks, draft:viewDraft, trace:viewTrace};
@@ -439,35 +578,30 @@ function renderPanel(){
   if(S.tab === "trace") wireTraceFilter();
 }
 
-/* ---------------------------------------------------------------- overview */
+/* ------------------------------------------------------------------ overview */
 function viewOverview(){
-  const s = S.snap;
-  const prof = s.profile;
+  const s = S.snap, prof = s.profile;
   let html = "";
-
   if(s.escalations.length){
     html += s.escalations.map(e =>
-      '<div class="gate"><h3>' + (e.blocking ? "Blocks the pipeline" : "Notice") +
+      '<div class="gate rise"><h3>' + (e.blocking ? "Blocks the pipeline" : "Notice") +
       ' <span class="pill accent">' + esc(e.trigger.replace(/_/g," ")) + '</span></h3>' +
       '<p>' + esc(e.message) + '</p></div>').join("");
   }
-
   if(!prof){
     return html + '<div class="empty"><strong>No Deal Profile Brief</strong>' +
       'Phase 1 decomposes the thesis, so it cannot start without one. Load the demo profile from the rail.</div>';
   }
-
   const tier1 = s.tree ? s.tree.tier_1 : [];
   const resolved = tier1.filter(h => h.rating !== "No Data").length;
-  html += '<div class="stats">' +
+  html += '<div class="stats rise">' +
     stat("Tier-1 resolved", tier1.length ? resolved + "/" + tier1.length : "—", s.tree ? s.tree.framing_label : "no tree yet") +
     stat("Evidence items", s.evidence.items.length, s.evidence.items.filter(i=>i.independent).length + " independently sourced") +
     stat("Risks", s.register.risks.length, "coverage " + pct(s.register.coverage)) +
     stat("Open gaps", s.register.gaps.filter(g=>!g.resolved).length, s.register.gaps.filter(g=>g.blocking && !g.resolved).length + " blocking") +
-    stat("Groundedness", s.groundedness==null ? "—" : pct(s.groundedness), "cited claims in the draft") +
+    stat("Groundedness", s.groundedness==null ? "—" : pct(s.groundedness), "cited assertive claims") +
     '</div>';
-
-  html += '<div class="grid-2" style="margin-top:14px">';
+  html += '<div class="grid-2" style="margin-top:16px">';
   html += card("Deal Profile Brief",
     row("Target", prof.target.legal_name) +
     row("Sub-sector", prof.sector.sub_sector) +
@@ -475,59 +609,54 @@ function viewOverview(){
     row("Buyer", prof.buyer.buyer_type + " — " + (prof.buyer.decision_criteria||[]).join(", ")) +
     row("Stage", prof.target.deal_stage + (prof.target.ic_date ? " · IC " + prof.target.ic_date : "")) +
     row("Access", prof.access.vdr_access + (prof.access.above_the_line ? ", above the line" : ", BELOW the line")));
-
   html += card("Tool authorization",
-    '<p class="muted" style="margin:0 0 8px;font-size:12.5px">Scope is set by role and by intake Category F, before any run.</p>' +
+    '<p class="muted" style="margin:0 0 10px;font-size:13px">Scope is fixed by role and by intake Category F before any run. A forbidden tool is never offered.</p>' +
     '<div class="tablewrap"><table><thead><tr><th>Role</th><th>Allowed</th></tr></thead><tbody>' +
-    s.tool_scope.map(t => '<tr><td>' + esc(t.role) + '</td><td class="mono" style="font-size:11.5px">' +
+    s.tool_scope.map(t => '<tr><td>' + esc(t.role) + '</td><td class="mono" style="font-size:12px">' +
       (t.allowed.length ? esc(t.allowed.join(", ")) : '<span class="faint">none</span>') + '</td></tr>').join("") +
     '</tbody></table></div>');
   html += "</div>";
   return html;
 }
-
 function stat(k,v,d){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
 function card(title, body){ return '<div class="card"><div class="card-head"><h3>'+esc(title)+'</h3></div><div class="card-body">'+body+'</div></div>'; }
-function row(k,v){ return '<div style="display:grid;grid-template-columns:104px minmax(0,1fr);gap:10px;padding:4px 0"><span class="faint" style="font-size:12px">'+esc(k)+'</span><span>'+esc(v)+'</span></div>'; }
-function pct(x){ return x==null ? "—" : Math.round(x*100) + "%"; }
+function row(k,v){ return '<div style="display:grid;grid-template-columns:108px minmax(0,1fr);gap:11px;padding:4px 0"><span class="faint" style="font-size:12.5px">'+esc(k)+'</span><span>'+esc(v)+'</span></div>'; }
 
-/* -------------------------------------------------------------- hypotheses */
+/* ---------------------------------------------------------------- hypotheses */
 function viewHypotheses(){
   const s = S.snap;
-  if(!s.search) return '<div class="empty"><strong>Phase 1 has not run</strong>Run Thesis from the pipeline rail.</div>';
+  if(!s.search) return '<div class="empty"><strong>Phase 1 has not run</strong>Run it from the rail — it generates three framings of the thesis and scores each one.</div>';
   let html = "";
-
   if(s.search.requires_human && !s.tree){
     const isTie = s.search.outcome === "tie_escalated";
-    html += '<div class="gate"><h3>Human decision required</h3><p>' +
+    html += '<div class="gate rise"><h3>Your decision</h3><p>' +
       (isTie
         ? 'Framings <span class="mono">' + esc(s.search.tied_branch_ids.join(", ")) +
-          '</span> score within 0.5 points. Ties are not auto-resolved by reranking — choose one.'
+          '</span> score within 0.5 points of each other. A tie is not resolved by reranking — a person chooses.'
         : esc(s.search.clarifying_question || "All framings were pruned.")) +
-      '</p><p class="faint" style="font-size:12px;margin:0">Sign the gate with your name in the rail; it is written into the artifact provenance.</p></div>';
+      '</p><p class="faint" style="font-size:12.5px;margin:0">Put your name in the rail first; it is written into the artifact provenance.</p></div>';
   }
-
   html += '<div class="branches">';
   s.search.branches.forEach(b => {
-    const cls = "branch" + (b.selected ? " is-selected" : "") + (b.pruned ? " is-pruned" : "");
-    let status = b.selected ? '<span class="pill confirmed">selected</span>'
+    const cls = "branch rise" + (b.selected ? " is-selected" : "") + (b.pruned ? " is-pruned" : "");
+    const status = b.selected ? '<span class="pill confirmed">selected</span>'
       : b.pruned ? '<span class="pill ' + (b.recoverable ? "partial" : "contradicted") + '">' +
           (b.recoverable ? "pruned · recoverable" : "pruned · hard") + '</span>'
       : '<span class="pill neutral">candidate</span>';
     html += '<div class="' + cls + '">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px">' +
       '<h4>' + esc(b.framing_label) + '</h4>' + status + '</div>' +
-      '<div style="display:flex;align-items:baseline;gap:8px">' +
-      '<span class="mono" style="font-size:19px;font-weight:600">' + (b.average==null?"—":b.average.toFixed(2)) + '</span>' +
+      '<div style="display:flex;align-items:baseline;gap:10px">' +
+      '<span class="score-big">' + (b.average==null?"—":b.average.toFixed(2)) + '</span>' +
       '<span class="pill ' + (b.four_question_passed ? "confirmed" : "contradicted") + '">' +
-      (b.four_question_passed ? "4Q pass" : "4Q FAIL") + '</span></div>' +
+      (b.four_question_passed ? "four-question pass" : "four-question FAIL") + '</span></div>' +
       '<dl class="scores">' +
         scoreRow("buyer criteria", b.scores.buyer_criteria_coverage) +
-        scoreRow("4Q alignment", b.scores.four_question_alignment) +
+        scoreRow("four-question alignment", b.scores.four_question_alignment) +
         scoreRow("sub-sector fit", b.scores.sub_sector_fit) +
         scoreRow("testability", b.scores.testability) +
       '</dl>' +
-      (b.prune_reason ? '<p class="faint" style="font-size:11.5px;margin:0">' + esc(b.prune_reason) + '</p>' : "") +
+      (b.prune_reason ? '<p class="faint" style="font-size:12px;margin:0">' + esc(b.prune_reason) + '</p>' : "") +
       '<ul class="hyps">' + b.tier_1.map(h => '<li>' + esc(h.statement) + '</li>').join("") + '</ul>' +
       (b.pruned && !b.recoverable ? '' :
         '<button class="btn btn-sm ' + (b.selected ? "" : "btn-primary") + '" data-branch="' +
@@ -535,16 +664,15 @@ function viewHypotheses(){
       '</div>';
   });
   html += "</div>";
-
   if(s.tree){
-    html += '<div class="card" style="margin-top:16px"><div class="card-head"><h3>Approved hypothesis tree</h3>' +
+    html += '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Approved hypothesis tree</h3>' +
       '<span class="pill confirmed">' + esc(s.tree.framing_label) + '</span>' +
-      '<span class="spacer"></span><span class="faint mono" style="font-size:11px">' + esc(s.tree.created_by) + '</span></div>' +
+      '<span style="flex:1"></span><span class="faint mono" style="font-size:11.5px">' + esc(s.tree.created_by) + '</span></div>' +
       '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Tier-1 hypothesis</th><th>Status</th>' +
       '<th class="num">Items</th><th>Triangulated</th></tr></thead><tbody>' +
       s.tree.tier_1.map(h =>
         '<tr><td class="id">' + esc(h.id) + '</td><td>' + esc(h.statement) +
-        '<div class="faint" style="font-size:11.5px;margin-top:3px">needs: ' +
+        '<div class="faint" style="font-size:12px;margin-top:4px">needs: ' +
         esc((h.required_evidence||[]).join("; ") || "—") + '</div></td>' +
         '<td><span class="pill ' + TAG_CLASS[h.rating] + '">' + esc(h.rating) + '</span></td>' +
         '<td class="num">' + h.items + '</td>' +
@@ -553,14 +681,18 @@ function viewHypotheses(){
   }
   return html;
 }
-function scoreRow(k,v){ return '<dt>'+esc(k)+'</dt><dd>'+(v==null?"—":Number(v).toFixed(1))+'</dd>'; }
+function scoreRow(k,v){
+  const w = v==null ? 0 : Math.max(0, Math.min(100, (v/5)*100));
+  return '<dt>'+esc(k)+'</dt><dd>'+(v==null?"—":Number(v).toFixed(1))+'</dd>' +
+         '<div class="bar"><span style="width:'+w+'%"></span></div>';
+}
 
 function wireBranchButtons(){
   document.querySelectorAll("[data-branch]").forEach(btn => {
     btn.onclick = () => {
       const by = $("approver").value.trim();
-      if(!by){ toast("Enter your name in the rail — a gate cleared by nobody is not a gate.", "err"); $("approver").focus(); return; }
-      withBusy("Select framing", () => api(
+      if(!by){ toast("Put your name in the rail — a gate cleared by nobody is not a gate.", "err"); $("approver").focus(); return; }
+      withBusy("thesis", "Select framing", () => api(
         "/api/engagements/" + encodeURIComponent(S.eng) + "/select",
         {method:"POST", body:JSON.stringify({branch_id:btn.dataset.branch, approved_by:by})}
       ).then(r => toast("Approved " + r.selected + " — " + r.approved_by, "ok")));
@@ -568,16 +700,19 @@ function wireBranchButtons(){
   });
 }
 
-/* ---------------------------------------------------------------- requests */
+/* ------------------------------------------------------------------ requests */
 function viewRequests(){
   const s = S.snap;
-  if(!s.checklist) return '<div class="empty"><strong>No data request yet</strong>Run Data request from the rail once a tree is approved.</div>';
-  const tiers = [[1,"Tier 1 — deal-critical"],[2,"Tier 2 — depth-building"],[3,"Tier 3 — enrichment"]];
-  return tiers.map(([t,label]) => {
+  if(!s.checklist) return '<div class="empty"><strong>No data request yet</strong>Run it from the rail once a hypothesis tree is approved.</div>';
+  const tiers = [[1,"Tier 1 — deal-critical","blocking: no hypothesis is Confirmed or Contradicted without it"],
+                 [2,"Tier 2 — depth-building","needed for presentation-ready depth"],
+                 [3,"Tier 3 — enrichment","strengthens an exhibit, never blocking"]];
+  return tiers.map(([t,label,note]) => {
     const items = s.checklist.items.filter(i => i.tier === t);
     if(!items.length) return "";
-    return '<div class="card"><div class="card-head"><h3>' + esc(label) + '</h3>' +
-      '<span class="pill neutral">' + items.length + '</span></div>' +
+    return '<div class="card rise"><div class="card-head"><h3>' + esc(label) + '</h3>' +
+      '<span class="pill neutral">' + items.length + '</span>' +
+      '<span class="faint" style="font-size:12.5px">' + esc(note) + '</span></div>' +
       '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Category</th><th>Item</th><th>Supports</th></tr></thead><tbody>' +
       items.map(i => '<tr><td class="id">' + esc(i.id) + '</td><td class="muted">' + esc(i.category) +
         (i.sub_sector_specific ? ' <span class="pill accent">sub-sector</span>' : "") + '</td>' +
@@ -586,50 +721,48 @@ function viewRequests(){
   }).join("");
 }
 
-/* ---------------------------------------------------------------- evidence */
+/* ------------------------------------------------------------------ evidence */
 function viewEvidence(){
   const s = S.snap;
   if(!s.evidence.items.length) return '<div class="empty"><strong>No evidence gathered</strong>Ingest a data room, then run the evidence loop.</div>';
-  let html = '<div class="stats" style="margin-bottom:14px">' +
+  let html = '<div class="stats rise" style="margin-bottom:16px">' +
     Object.entries(s.evidence.counts).map(([k,v]) => stat(k, v, "")).join("") + '</div>';
-  html += '<div class="card"><div class="card-head"><h3>Evidence Matrix</h3>' +
-    '<span class="faint" style="font-size:12px">hypothesis → data → confidence</span></div>' +
-    '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Hypothesis</th><th>Tag</th><th>Source</th><th>Citation</th></tr></thead><tbody>' +
+  html += '<div class="card rise"><div class="card-head"><h3>Evidence Matrix</h3>' +
+    '<span class="faint" style="font-size:12.5px">hypothesis → data → confidence</span></div>' +
+    '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Hypothesis</th><th>Tag</th><th>Sourcing</th><th>Citation</th></tr></thead><tbody>' +
     s.evidence.items.map(i =>
       '<tr><td class="id">' + esc(i.id) + '</td><td class="id">' + esc(i.hypothesis_id) + '</td>' +
       '<td><span class="pill ' + TAG_CLASS[i.tag] + '">' + esc(i.tag) + '</span></td>' +
       '<td>' + (i.independent ? '<span class="pill confirmed">independent</span>'
                               : '<span class="pill nodata">management</span>') +
-      '<div class="faint mono" style="font-size:11px;margin-top:3px">' + esc(i.source_kind) + '</div></td>' +
+      '<div class="faint mono" style="font-size:11.5px;margin-top:4px">' + esc(i.source_kind) + '</div></td>' +
       '<td>' + i.citations.map(c =>
-        '<div style="margin-bottom:5px"><span class="mono" style="font-size:11.5px">' + esc(c.source_file) + '</span>' +
-        '<div class="faint" style="font-size:11.5px">' + esc(c.locator) +
+        '<div style="margin-bottom:6px"><span class="mono" style="font-size:12px">' + esc(c.source_file) + '</span>' +
+        '<div class="faint" style="font-size:12px">' + esc(c.locator) +
         (c.date ? " · " + esc(c.date) : "") +
-        (c.similarity!=null ? " · sim " + c.similarity.toFixed(2) : "") + '</div></div>').join("") +
-      (i.query ? '<div class="faint" style="font-size:11px;margin-top:4px">query: ' + esc(i.query) + '</div>' : "") +
+        (c.similarity!=null ? " · similarity " + c.similarity.toFixed(2) : "") + '</div></div>').join("") +
+      (i.query ? '<div class="faint" style="font-size:11.5px;margin-top:5px">query: ' + esc(i.query) + '</div>' : "") +
       '</td></tr>').join("") +
     '</tbody></table></div></div>';
   return html;
 }
 
-/* ------------------------------------------------------------------- risks */
+/* --------------------------------------------------------------------- risks */
 function viewRisks(){
   const s = S.snap, r = s.register;
   if(!r.risks.length && !r.gaps.length) return '<div class="empty"><strong>Risk register is empty</strong>Run the risk audit once evidence exists.</div>';
-  let html = "";
-  if(r.uncovered.length){
-    html += '<div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Taxonomy coverage</h3>' +
-      '<span class="pill ' + (r.coverage > .8 ? "confirmed" : "partial") + '">' + pct(r.coverage) + '</span></div>' +
-      '<div class="card-body"><p class="muted" style="margin:0">Not evaluated on this deal: ' +
-      esc(r.uncovered.join(", ")) + '. Coverage is measured against the standing taxonomy, not against what happened to surface.</p></div></div>';
-  }
+  let html = '<div class="card rise" style="margin-bottom:16px"><div class="card-head"><h3>Taxonomy coverage</h3>' +
+    '<span class="pill ' + (r.coverage > .8 ? "confirmed" : "partial") + '">' + pct(r.coverage) + '</span></div>' +
+    '<div class="card-body"><p class="muted" style="margin:0">' +
+    (r.uncovered.length ? 'Not evaluated on this deal: ' + esc(r.uncovered.join(", ")) + '. ' : 'Every applicable category was evaluated. ') +
+    'Coverage is measured against the standing taxonomy, not against what happened to surface.</p></div></div>';
   if(r.source_conflicts.length){
-    html += '<div class="gate"><h3>Source conflict</h3>' +
+    html += '<div class="gate rise"><h3>Source conflict</h3>' +
       r.source_conflicts.map(c => '<p>' + esc(c) + '</p>').join("") + '</div>';
   }
   if(r.risks.length){
-    html += '<div class="card"><div class="card-head"><h3>Risk register</h3>' +
-      '<span class="faint" style="font-size:12px">ranked by severity × likelihood</span></div>' +
+    html += '<div class="card rise"><div class="card-head"><h3>Risk register</h3>' +
+      '<span class="faint" style="font-size:12.5px">ranked by severity × likelihood</span></div>' +
       '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Category</th><th>Finding</th>' +
       '<th class="num">Sev</th><th class="num">Lik</th><th class="num">Score</th><th>Flags</th></tr></thead><tbody>' +
       r.risks.map(x => '<tr><td class="id">' + esc(x.id) + '</td><td class="muted">' + esc(x.category) + '</td>' +
@@ -639,7 +772,8 @@ function viewRisks(){
       '</tbody></table></div></div>';
   }
   if(r.gaps.length){
-    html += '<div class="card"><div class="card-head"><h3>Outstanding information gaps</h3></div>' +
+    html += '<div class="card rise"><div class="card-head"><h3>Outstanding information gaps</h3>' +
+      '<span class="faint" style="font-size:12.5px">each one specific and dated, never “more data needed”</span></div>' +
       '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Request</th><th>Owner</th><th>Target close</th><th>Status</th></tr></thead><tbody>' +
       r.gaps.map(g => '<tr><td class="id">' + esc(g.id) + '</td><td>' + esc(g.request) + '</td>' +
         '<td class="muted">' + esc(g.owner) + '</td>' +
@@ -653,13 +787,13 @@ function viewRisks(){
   return html;
 }
 
-/* ------------------------------------------------------------------- draft */
+/* --------------------------------------------------------------------- draft */
 function viewDraft(){
   const s = S.snap;
-  if(!s.deck) return '<div class="empty"><strong>No draft yet</strong>Run Synthesis once the Tier-1 hypotheses are rated or carry dated gaps.</div>';
-  let html = '<div class="gate" style="border-color:var(--rule-strong);background:var(--surface-2)">' +
+  if(!s.deck) return '<div class="empty"><strong>No draft yet</strong>Run synthesis once every Tier-1 hypothesis is rated or carries a dated gap.</div>';
+  let html = '<div class="gate rise" style="border-color:var(--rule-strong);background:var(--surface-2)">' +
     '<h3 style="color:var(--ink-2)">Draft status</h3><p style="margin:0">' + esc(s.deck.draft_notice) + '</p></div>';
-  html += '<div class="card"><div class="card-body doc">';
+  html += '<div class="card rise"><div class="card-body doc">';
   s.deck.slides.forEach(sl => {
     html += '<h2>' + sl.section_number + '. ' + esc(sl.section_title) + '</h2>';
     html += '<p class="headline">' + esc(sl.so_what_headline) + '</p>';
@@ -672,38 +806,38 @@ function viewDraft(){
     });
     sl.exhibits.forEach(x => {
       if(!x.columns.length) return;
-      html += '<div class="tablewrap" style="margin:10px 0 14px"><table><caption style="text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:6px">' +
+      html += '<div class="tablewrap" style="margin:12px 0 16px"><table><caption style="text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:7px">' +
         esc(x.title) + '</caption><thead><tr>' + x.columns.map(c => '<th>' + esc(c) + '</th>').join("") +
         '</tr></thead><tbody>' + x.rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c) + '</td>').join("") + '</tr>').join("") +
         '</tbody></table></div>';
-      if(x.note) html += '<p class="faint" style="font-size:11.5px;margin:-8px 0 14px">' + esc(x.note) + '</p>';
+      if(x.note) html += '<p class="faint" style="font-size:12px;margin:-10px 0 16px">' + esc(x.note) + '</p>';
     });
   });
   html += "</div></div>";
   return html;
 }
 
-/* ------------------------------------------------------------------- trace */
+/* --------------------------------------------------------------------- trace */
 function traceEvents(){
   const s = S.snap, out = [];
   s.trace.forEach(t => out.push({
     kind:"react", at:t.at || null, seq:t.step, agent:"Analyst", phase:t.phase,
     title:"Step " + t.step + " · " + t.hypothesis_id, tag:t.tag,
+    filtered:t.superseded_filtered || [],
     rows:[["thought",t.thought],["action",t.action],["observation",t.observation]],
   }));
   s.escalation_history.forEach(e => out.push({
     kind:"escalation", at:e.raised_at, agent:e.raised_by, phase:"escalation",
     title:e.trigger.replace(/_/g," "), tag:e.blocking ? "blocking" : "notice",
-    rows:[["message",e.message]],
+    filtered:[], rows:[["message",e.message]],
   }));
-  // Writes to the trace and citation logs are already shown as reasoning steps and
-  // citations; repeating them here as opaque digests buries the reasoning under its
-  // own bookkeeping.
+  // Writes to the trace and citation logs already appear as reasoning steps and
+  // citations; repeating them as opaque digests buries the reasoning in bookkeeping.
   s.audit.filter(a => a.collection !== "trace" && a.collection !== "citation_log")
    .forEach(a => out.push({
     kind:"write", at:a.at, seq:a.seq, agent:a.agent, phase:"state store",
     title:a.action + " " + a.collection + (a.key !== "current" ? " / " + a.key : ""),
-    tag:null, rows:[["digest",a.digest]],
+    tag:null, filtered:[], rows:[["digest",a.digest]],
   }));
   out.sort((x,y) => {
     if(x.at && y.at) return x.at < y.at ? 1 : -1;
@@ -715,36 +849,41 @@ function traceEvents(){
 }
 
 function viewTrace(){
-  const s = S.snap;
   const all = traceEvents();
   if(!all.length) return '<div class="empty"><strong>Nothing recorded yet</strong>Every state-store write is attributed and timestamped; reasoning steps appear once the evidence loop runs.</div>';
-  const shown = S.traceFilter === "all" ? all : all.filter(e => e.kind === S.traceFilter);
   const counts = {react:0, escalation:0, write:0};
   all.forEach(e => counts[e.kind]++);
+  const shown = S.traceFilter === "all" ? all : all.filter(e => e.kind === S.traceFilter);
   let html = '<div class="trace-controls">' +
-    '<span class="faint mono" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Filter</span>' +
+    '<span class="faint mono" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase">Filter</span>' +
     [["all","Everything",all.length],["react","Reasoning steps",counts.react],
      ["escalation","Escalations",counts.escalation],["write","State writes",counts.write]]
       .map(([k,label,n]) => '<button class="btn btn-sm" data-filter="' + k + '"' +
-        (S.traceFilter===k ? ' style="border-color:var(--accent);color:var(--accent)"' : "") +
+        (S.traceFilter===k ? ' style="border-color:var(--accent);color:var(--accent);font-weight:600"' : "") +
         '>' + esc(label) + ' <span class="mono faint">' + n + '</span></button>').join("") +
     '</div>';
-  html += '<p class="muted" style="margin:-4px 0 14px;font-size:12.5px">' +
-    'Reasoning steps record why the Analyst went where it went; state writes record what changed and who changed it. ' +
-    'Newest first.</p>';
-  html += '<div class="trace-list">' + shown.map(e =>
-    '<div class="tr" data-kind="' + e.kind + '">' +
+  html += '<p class="muted" style="margin:-4px 0 16px;font-size:13px;max-width:82ch">' +
+    'Reasoning steps record <em>why</em> the Analyst went where it went; state writes record ' +
+    '<em>what</em> changed and which agent changed it. Newest first — none of it is ' +
+    'reconstructed after the fact.</p>';
+  html += '<div class="trace-list">' + shown.map((e,i) =>
+    '<div class="tr' + (i < 4 ? " rise" : "") + '" data-kind="' + e.kind + '">' +
       '<div class="tr-head">' +
         '<span class="tr-agent">' + esc(e.agent) + '</span>' +
         '<span>' + esc(e.phase) + '</span>' +
         '<span>' + esc(e.title) + '</span>' +
         (e.tag ? '<span class="pill ' + (TAG_CLASS[e.tag] || (e.tag==="blocking"?"contradicted":"neutral")) + '">' + esc(e.tag) + '</span>' : "") +
-        '<span class="spacer" style="flex:1"></span>' +
+        '<span style="flex:1"></span>' +
         (e.at ? '<span>' + esc(e.at.replace("T"," ").slice(0,19)) + '</span>' : "") +
       '</div>' +
       '<div class="tr-body">' + e.rows.filter(r => r[1]).map(r =>
         '<div class="tr-row"><span class="tr-k">' + esc(r[0]) + '</span><span class="tr-v">' + esc(r[1]) + '</span></div>').join("") +
-      '</div></div>').join("") + '</div>';
+      '</div>' +
+      (e.filtered && e.filtered.length
+        ? '<div class="tr-filtered">Supersession filter dropped ' + e.filtered.length +
+          ' stale version(s) before ranking: ' + esc(e.filtered.join("; ")) + '</div>'
+        : "") +
+      '</div>').join("") + '</div>';
   return html;
 }
 
@@ -754,17 +893,18 @@ function wireTraceFilter(){
   });
 }
 
-/* ------------------------------------------------------------------ wiring */
+/* -------------------------------------------------------------------- wiring */
 $("engSelect").onchange = (e) => { S.eng = e.target.value; if(S.eng) refresh(); };
 $("engCreate").onclick = () => {
   const v = $("engNew").value.trim();
   if(!v) return;
   S.eng = v; $("engNew").value = ""; boot();
 };
+$("runAllBtn").onclick = runAll;
 $("ingestBtn").onclick = () => {
   const path = $("dataRoom").value.trim();
   if(!path){ toast("Enter a data-room path.", "err"); return; }
-  withBusy("Ingest", () => api("/api/engagements/" + encodeURIComponent(S.eng) + "/ingest",
+  withBusy("analyze", "Ingest", () => api("/api/engagements/" + encodeURIComponent(S.eng) + "/ingest",
     {method:"POST", body:JSON.stringify({path})}).then(r => toast(r.summary, "ok")));
 };
 $("exportBtn").onclick = () => {

@@ -113,6 +113,8 @@ td.id{font-family:var(--mono);font-size:12px;color:var(--ink-muted);white-space:
 .tr-row{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;margin-top:5px;font-size:13px}
 .tr-k{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
 .tr-v{color:var(--ink-2);white-space:pre-wrap;word-break:break-word}
+.filtered{margin-top:8px;font-size:12.5px;color:var(--confirmed);background:var(--confirmed-bg);
+ border-radius:5px;padding:7px 11px}
 footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--rule);
  font-size:12.5px;color:var(--ink-faint);font-family:var(--mono)}
 @media print{body{background:#fff}.wrap{max-width:none;padding:0}}
@@ -305,6 +307,15 @@ def render_report(ctx: AgentContext, *, standalone: bool = True, include_trace: 
                         f'<div class="tr-row"><span class="tr-k">{k}</span>'
                         f'<span class="tr-v">{_e(t.get(k))}</span></div>'
                         for k in ("thought", "action", "observation") if t.get(k)
+                    )
+                    + (
+                        # The supersession filter is the guard against citing a real
+                        # but stale figure. A reviewer needs to see it fired.
+                        '<div class="filtered">Supersession filter dropped '
+                        f'{len(t.get("superseded_filtered") or [])} stale version(s) '
+                        "before ranking: "
+                        f'{_e("; ".join(t.get("superseded_filtered") or []))}</div>'
+                        if t.get("superseded_filtered") else ""
                     )
                     + "</div>"
                 )

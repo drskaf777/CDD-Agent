@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from cdd_agent.agents.analyst import Analyst
@@ -36,6 +36,7 @@ from cdd_agent.guardrails.escalation import (
     record as record_escalations,
 )
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
+from cdd_agent.retrieval.indexes import IndexVersionMismatch
 from cdd_agent.retrieval.ingestion import ingest_directory
 from cdd_agent.schemas.common import ConfidenceTag, Tier
 from cdd_agent.schemas.deal_profile import DealProfile
@@ -45,6 +46,16 @@ STATIC = Path(__file__).parent / "static"
 DEMO = Path(__file__).resolve().parents[3] / "demo"
 
 app = FastAPI(title="CDD Agent", docs_url="/api/docs")
+
+
+@app.exception_handler(IndexVersionMismatch)
+def _index_mismatch(request: Any, exc: IndexVersionMismatch) -> JSONResponse:
+    """Surface an unreadable index as an actionable message, not a 500.
+
+    The underlying failure is a Rust panic; leaving it as an Internal Server Error
+    tells the operator nothing about the one thing that would fix it.
+    """
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
 _store = StateStore()
 _tables: dict[str, list] = {}
 
@@ -103,7 +114,10 @@ def snapshot(engagement: str) -> dict[str, Any]:
     deck = mem.deck()
 
     escalations: list[dict[str, Any]] = []
-    if search is not None:
+    if search is not None and tree is None:
+        # Once a tree is approved the Phase-1 gate is settled. The stored search may
+        # still record the tie that was resolved; replaying it as a live escalation
+        # would report the pipeline as blocked when a person has already unblocked it.
         escalations += [e.to_dict() for e in check_phase1(search)]
     if tree is not None:
         escalations += [e.to_dict() for e in check_tier1_evidence(tree, matrix, register)]
@@ -112,7 +126,10 @@ def snapshot(engagement: str) -> dict[str, Any]:
     applicable = applicable_categories(ctx.is_strategic_buyer)
     return {
         "engagement_id": engagement,
-        "phases": _phase_states(profile, search, tree, checklist, matrix, register, deck),
+        "phases": _phase_states(
+            profile, search, tree, checklist, matrix, register, deck,
+            ingested=_store.get(engagement, Collection.METRICS, "ingestion"),
+        ),
         "profile": profile.model_dump(mode="json") if profile else None,
         "profile_ready": profile.is_ready_for_phase_1()[0] if profile else False,
         "profile_missing": profile.is_ready_for_phase_1()[1] if profile else [],
@@ -299,7 +316,9 @@ def export(engagement: str) -> HTMLResponse:
 
 
 # ------------------------------------------------------------------- projections
-def _phase_states(profile, search, tree, checklist, matrix, register, deck) -> list[dict]:
+def _phase_states(
+    profile, search, tree, checklist, matrix, register, deck, ingested=None
+) -> list[dict]:
     def state(done: bool, blocked: bool = False, available: bool = True) -> str:
         if blocked:
             return "blocked"
@@ -318,9 +337,15 @@ def _phase_states(profile, search, tree, checklist, matrix, register, deck) -> l
         {"id": "request", "label": "Data request", "phase": "Phase 2",
          "agent": "Analyst", "output": "Prioritized checklist",
          "state": state(checklist is not None, False, tree is not None)},
+        # Ingestion is the first half of Phase 3 and the point where the supersession
+        # filter runs. Leaving it out of the pipeline hid both, and let the evidence
+        # loop be started against an empty index.
+        {"id": "ingest", "label": "Ingest data room", "phase": "Phase 3",
+         "agent": "Controller", "output": "Classified + indexed documents",
+         "state": state(bool(ingested), False, tree is not None)},
         {"id": "analyze", "label": "Evidence loop", "phase": "Phase 3",
          "agent": "Analyst", "output": "Evidence Matrix",
-         "state": state(bool(matrix.items), False, tree is not None)},
+         "state": state(bool(matrix.items), False, bool(ingested))},
         {"id": "audit", "label": "Risk audit", "phase": "Phase 3",
          "agent": "Risk Auditor", "output": "Risk Register",
          "state": state(bool(register.risks), False, bool(matrix.items))},
