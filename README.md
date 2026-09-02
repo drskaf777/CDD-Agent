@@ -192,6 +192,19 @@ command runs intake for real and the fixture is unnecessary.
 cdd serve
 ```
 
+The same interface drives a live run — it reads `CDD_OFFLINE` like everything else, and
+the mode badge shows the model name instead of "offline mode". Serve from the 3.13
+environment so the Critic is available:
+
+```powershell
+$env:CDD_OFFLINE="0"; $env:CDD_DATA_DIR="./data313"; $env:CDD_CHROMA_DIR="./data/chroma-313"
+.venv313\Scripts\cdd serve
+```
+
+Live phases take minutes rather than milliseconds — Phase 1 alone is three generations
+and three separate Critic crews — so the running indicator counts elapsed seconds. A
+spinner with no elapsed time is indistinguishable from a hang.
+
 Opens a local app at http://127.0.0.1:8000 (localhost only — an engagement's data room
 is client-confidential and this server has no authentication).
 

@@ -325,7 +325,7 @@ td.id { font-family:var(--mono); font-size:12.5px; color:var(--ink-muted); white
 <script>
 "use strict";
 const S = { eng:null, snap:null, tab:"overview", busy:null, traceFilter:"all",
-            running:null, fatal:null };
+            running:null, fatal:null, startedAt:null, tick:null };
 const $ = (id) => document.getElementById(id);
 
 const TABS = [
@@ -365,9 +365,30 @@ async function api(path, opts){
   return data;
 }
 
+function elapsed(){
+  return S.startedAt ? Math.round((Date.now() - S.startedAt) / 1000) : 0;
+}
+
+/* Live phases take minutes, not milliseconds - Phase 1 alone is three generations
+   and three separate crews. A spinner with no elapsed time is indistinguishable from
+   a hang, both for the operator and for anyone watching a recording. */
+function startTicker(){
+  stopTicker();
+  S.tick = setInterval(() => {
+    const btn = $("runAllBtn");
+    if(btn && S.busy){
+      btn.innerHTML = '<span class="busy"></span> Running ' +
+        esc(PHASE_LABEL[S.running] || "") + ' · ' + elapsed() + 's';
+    }
+    const pill = document.querySelector(".step[data-running=true] .pill.live");
+    if(pill) pill.textContent = "working · " + elapsed() + "s";
+  }, 1000);
+}
+function stopTicker(){ if(S.tick){ clearInterval(S.tick); S.tick = null; } }
+
 async function withBusy(id, label, fn){
   if(S.busy) return null;
-  S.busy = id; S.running = id; render();
+  S.busy = id; S.running = id; S.startedAt = Date.now(); render(); startTicker();
   try { const out = await fn(); await refresh(); return out; }
   catch(err){
     if(err.status === 503) S.fatal = err.message;
@@ -375,7 +396,7 @@ async function withBusy(id, label, fn){
     await refresh().catch(() => {});
     return null;
   }
-  finally { S.busy = null; S.running = null; render(); }
+  finally { stopTicker(); S.busy = null; S.running = null; S.startedAt = null; render(); }
 }
 
 /* -------------------------------------------------------------- data loading */
@@ -503,8 +524,11 @@ function runPhase(id){
   }
   return withBusy(id, PHASE_LABEL[id] || id, async () => {
     const out = await api(base + id, {method:"POST"});
-    if(id === "thesis" && out.requires_human) toast("Three framings scored within the tie band — your call.");
-    else if(id === "analyze") toast(out.steps + " reasoning steps · " + out.gaps + " gap(s) logged", "ok");
+    if(id === "thesis"){
+      toast("Phase 1 complete in " + elapsed() + "s" +
+            (out.requires_human ? " — framings tied, your call." : " — a framing was selected."));
+    }
+    else if(id === "analyze") toast(out.steps + " reasoning steps · " + out.gaps + " gap(s) logged · " + elapsed() + "s", "ok");
     else if(id === "audit") toast(out.risks + " risk(s) raised · taxonomy coverage " + pct(out.coverage), "ok");
     else if(id === "synthesize") toast("Draft written · groundedness " + pct(out.groundedness), "ok");
     return out;
