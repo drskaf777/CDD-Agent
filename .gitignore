@@ -28,3 +28,6 @@ htmlcov/
 *.sqlite3-journal
 chroma*/
 demo/output/
+
+# Local pipeline run logs
+*.log
