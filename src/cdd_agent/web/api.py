@@ -48,6 +48,47 @@ DEMO = Path(__file__).resolve().parents[3] / "demo"
 app = FastAPI(title="CDD Agent", docs_url="/api/docs")
 
 
+def _model_error_response(exc: Exception) -> Optional[JSONResponse]:
+    """Translate a provider error into something an operator can act on.
+
+    A rejected key, an exhausted balance or a rate limit are operational conditions,
+    not bugs. Left unhandled they surface as a 500 and a stack trace in the server log,
+    which tells the person running a demo nothing about the one line they need to
+    change. Matched on class name and message so this does not hard-depend on any
+    provider SDK's exception hierarchy.
+    """
+    name = type(exc).__name__
+    message = str(exc)
+    if "Authentication" in name or "authentication_error" in message:
+        return JSONResponse(status_code=401, content={"detail":
+            "The Anthropic API rejected the key. Update ANTHROPIC_API_KEY - in .env for "
+            "the preview server, or in the shell for `cdd serve` - and restart the "
+            "server so it is re-read."})
+    if "anthropic-workspace-id" in message:
+        return JSONResponse(status_code=401, content={"detail":
+            "This key is identity-linked and must name a workspace. Set CDD_WORKSPACE_ID "
+            "to the workspace id from the Console, then restart the server."})
+    if "RateLimit" in name or "rate_limit" in message:
+        return JSONResponse(status_code=429, content={"detail":
+            "Rate limited by the Anthropic API. Wait a moment and re-run the phase."})
+    if "credit balance" in message or "billing" in message.lower():
+        return JSONResponse(status_code=402, content={"detail":
+            "The key is valid but the account has no credit."})
+    return None
+
+
+@app.exception_handler(Exception)
+def _unhandled(request: Any, exc: Exception) -> JSONResponse:
+    """Last resort: never answer the interface with a bare Internal Server Error."""
+    handled = _model_error_response(exc)
+    if handled is not None:
+        return handled
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {str(exc)[:400]}"},
+    )
+
+
 @app.exception_handler(IndexVersionMismatch)
 def _index_mismatch(request: Any, exc: IndexVersionMismatch) -> JSONResponse:
     """Surface an unreadable index as an actionable message, not a 500.
