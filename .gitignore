@@ -12,8 +12,14 @@ build/
 .coverage
 htmlcov/
 
-# Engagement state and indexes are client-confidential — never commit.
-data/engagements/
-data/chroma/
-data/*.sqlite3
+# Engagement state and vector indexes are client-confidential - never commit.
+# Matched broadly on purpose. These were previously listed by exact path, which meant
+# a second data directory (data313/, data/chroma-313/ for the CrewAI interpreter) fell
+# straight through and got committed. A rule that only holds for the directory names
+# you thought of is not a confidentiality control.
+/data/
+/data[-_0-9]*/
+*.sqlite3
+*.sqlite3-journal
+chroma*/
 demo/output/
