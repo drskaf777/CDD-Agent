@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from cdd_agent.agents.analyst import Analyst
-from cdd_agent.agents.base import AgentContext
+from cdd_agent.agents.base import AgentContext, save_structured_tables
 from cdd_agent.agents.intake import IntakeAgent
 from cdd_agent.agents.risk_auditor import RiskAuditor
 from cdd_agent.agents.synthesizer import Synthesizer
@@ -265,6 +265,7 @@ def run_ingest(engagement: str, body: IngestBody) -> dict[str, Any]:
         raise HTTPException(400, f"not a directory: {directory}")
     report, tables = ingest_directory(engagement, directory)
     _tables[engagement] = list(tables)
+    save_structured_tables(_store, engagement, tables)
     _store.put(
         engagement, Collection.METRICS, "ingestion",
         {"summary": report.summary(), "unstructured": report.unstructured,

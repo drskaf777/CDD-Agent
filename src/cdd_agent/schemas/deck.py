@@ -8,6 +8,7 @@ catch by reading (Checkpoint 6.1, output constraints).
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -34,15 +35,67 @@ class Claim(BaseModel):
         return f"{self.text} [{self.tag.value}]{flag} ({cites})"
 
 
+class ExhibitStatus(str, Enum):
+    """Where an exhibit's content came from - the same discipline as a Claim's tag.
+
+    A standard CDD deck has a known set of exhibits. Rendering one with invented
+    numbers because the data room lacked the inputs is precisely the failure this
+    project exists to prevent, so an exhibit that cannot be built says so and carries
+    the request that would build it.
+    """
+
+    COMPUTED = "computed"      # arithmetic over parsed data-room tables
+    EVIDENCED = "evidenced"    # assembled from cited evidence in the matrix
+    GAP = "gap"                # inputs absent - rendered as a request, not a guess
+
+
+class Series(BaseModel):
+    """One numeric series for a chart. Labels and values stay aligned by index."""
+
+    name: str = ""
+    labels: list[str] = Field(default_factory=list)
+    values: list[float] = Field(default_factory=list)
+    unit: str = ""
+
+    @model_validator(mode="after")
+    def _aligned(self) -> "Series":
+        if self.labels and len(self.labels) != len(self.values):
+            raise ValueError(
+                f"series {self.name!r} has {len(self.labels)} labels for "
+                f"{len(self.values)} values"
+            )
+        return self
+
+
 class Exhibit(BaseModel):
     """A computed table or chart spec. Numbers come from the computation tool."""
 
+    key: str = ""
     title: str
-    kind: str = Field(description="table | bridge | cohort | sensitivity | matrix")
+    kind: str = Field(
+        description="table | bar | line | scatter | waterfall | heatmap | matrix"
+    )
     columns: list[str] = Field(default_factory=list)
     rows: list[list[str]] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     note: str = ""
+    # Chart data, when the exhibit is drawable rather than only tabular.
+    series: list[Series] = Field(default_factory=list)
+    status: ExhibitStatus = ExhibitStatus.EVIDENCED
+    # What is missing, and what would close it. Set only when status is GAP.
+    gap_request: str = ""
+
+    @model_validator(mode="after")
+    def _gap_is_explained(self) -> "Exhibit":
+        if self.status is ExhibitStatus.GAP and not self.gap_request:
+            raise ValueError(
+                f"exhibit {self.title!r} is a gap but names no request that would close it"
+            )
+        if self.status is not ExhibitStatus.GAP and self.gap_request:
+            raise ValueError(
+                f"exhibit {self.title!r} carries a gap request but is not a gap"
+            )
+        return self
 
 
 class Slide(BaseModel):

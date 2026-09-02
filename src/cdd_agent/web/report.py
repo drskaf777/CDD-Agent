@@ -24,6 +24,8 @@ from cdd_agent.agents.base import AgentContext
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.schemas.common import ConfidenceTag
 
+_STATUS_PILL = {"computed": "confirmed", "evidenced": "partial", "gap": "nodata"}
+
 _TAG_CLASS = {
     ConfidenceTag.CONFIRMED.value: "confirmed",
     ConfidenceTag.PARTIALLY_CONFIRMED.value: "partial",
@@ -115,6 +117,17 @@ td.id{font-family:var(--mono);font-size:12px;color:var(--ink-muted);white-space:
 .tr-v{color:var(--ink-2);white-space:pre-wrap;word-break:break-word}
 .filtered{margin-top:8px;font-size:12.5px;color:var(--confirmed);background:var(--confirmed-bg);
  border-radius:5px;padding:7px 11px}
+.exhibit{margin:18px 0 22px}
+.exhibit-title{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+ color:var(--ink-faint);margin:0 0 7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.exhibit.gap{border:1px dashed var(--rule-strong);background:var(--surface-2);
+ border-radius:6px;padding:13px 16px}
+.chart{display:block;width:100%;max-width:620px;height:auto;margin:4px 0 8px}
+.chart .axis{fill:var(--ink-faint);font-family:var(--mono);font-size:9px}
+.chart .val{fill:var(--ink-2);font-family:var(--mono);font-size:9px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;
+ color:var(--ink-muted);margin:0}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
 footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--rule);
  font-size:12.5px;color:var(--ink-faint);font-family:var(--mono)}
 @media print{body{background:#fff}.wrap{max-width:none;padding:0}}
@@ -152,6 +165,92 @@ def _table(columns: Iterable[str], rows: Iterable[Iterable[str]], classes: Optio
 
 def _tag(value: str) -> str:
     return f'<span class="pill {_TAG_CLASS.get(value, "neutral")}">{_e(value)}</span>'
+
+
+def _chart(exhibit: Any) -> str:
+    """Inline SVG. No script, no library - the document stays one self-contained file."""
+    series = [s for s in exhibit.series if s.values]
+    if not series:
+        return ""
+    W, H, L, R, T, B = 620, 180, 44, 10, 10, 28
+    iw, ih = W - L - R, H - T - B
+    colours = ["#7a2e39", "#0f5f8f", "#146149", "#7d5509", "#912f24"]
+    values = [v for s in series for v in s.values]
+    top, bottom = max(values + [0]), min(values + [0])
+    span = (top - bottom) or 1
+
+    def y(v: float) -> float:
+        return T + ih - ((v - bottom) / span) * ih
+
+    pct = series[0].unit == "%"
+
+    def fmt(v: float) -> str:
+        if pct:
+            return f"{v * 100:.0f}%"
+        return f"{v / 1000:.0f}k" if abs(v) >= 1000 else f"{v:.0f}"
+
+    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" '
+           f'aria-label="{_e(exhibit.title)}">']
+    base = y(max(bottom, 0))
+    out.append(f'<line x1="{L}" y1="{base:.1f}" x2="{W - R}" y2="{base:.1f}" '
+               f'stroke="#c3cad6"/>')
+    out.append(f'<text x="4" y="{y(top) + 4:.1f}" class="axis">{_e(fmt(top))}</text>')
+
+    if exhibit.kind == "line":
+        for i, s in enumerate(series):
+            n = max(len(s.values) - 1, 1)
+            pts = " ".join(
+                f"{L + (j / n) * iw:.1f},{y(v):.1f}" for j, v in enumerate(s.values)
+            )
+            out.append(f'<polyline points="{pts}" fill="none" '
+                       f'stroke="{colours[i % len(colours)]}" stroke-width="2"/>')
+        for j, label in enumerate(series[0].labels):
+            n = max(len(series[0].labels) - 1, 1)
+            out.append(f'<text class="axis" text-anchor="middle" '
+                       f'x="{L + (j / n) * iw:.1f}" y="{H - 9}">{_e(label)}</text>')
+    else:
+        labels = series[0].labels or [str(i) for i in range(len(series[0].values))]
+        gw = iw / max(len(labels), 1)
+        bw = max(4.0, (gw * 0.7) / len(series))
+        for j, label in enumerate(labels):
+            for i, s in enumerate(series):
+                if j >= len(s.values):
+                    continue
+                v = s.values[j]
+                x0 = L + j * gw + gw * 0.15 + i * bw
+                y0, h = min(y(v), y(0)), max(1.0, abs(y(v) - y(0)))
+                out.append(f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{bw:.1f}" '
+                           f'height="{h:.1f}" fill="{colours[i % len(colours)]}"/>')
+                if len(series) == 1:
+                    out.append(f'<text class="val" text-anchor="middle" '
+                               f'x="{x0 + bw / 2:.1f}" y="{y0 - 3:.1f}">{_e(fmt(v))}</text>')
+            out.append(f'<text class="axis" text-anchor="middle" '
+                       f'x="{L + j * gw + gw / 2:.1f}" y="{H - 9}">{_e(label)}</text>')
+    out.append("</svg>")
+    if len(series) > 1:
+        out.append('<p class="legend">' + " ".join(
+            f'<span><i style="background:{colours[i % len(colours)]}"></i>'
+            f'{_e(s.name)}</span>' for i, s in enumerate(series)) + "</p>")
+    return "".join(out)
+
+
+def _exhibit(exhibit: Any) -> str:
+    """One exhibit: a chart, a table, or the request that would let it exist."""
+    status = getattr(exhibit.status, "value", str(exhibit.status))
+    head = (f'<p class="exhibit-title">{_e(exhibit.title)}'
+            f'<span class="pill {_STATUS_PILL.get(status, "neutral")}">{_e(status)}</span></p>')
+    if status == "gap":
+        return (f'<div class="exhibit gap">{head}'
+                f'<p class="muted" style="margin:0"><strong>Not built.</strong> '
+                f'{_e(exhibit.note)}</p>'
+                f'<p class="faint" style="margin:4px 0 0">Requested: '
+                f'{_e(exhibit.gap_request)}</p></div>')
+    body = _chart(exhibit) if exhibit.series else ""
+    if exhibit.columns:
+        body += _table(exhibit.columns, [[_e(c) for c in r] for r in exhibit.rows])
+    if exhibit.note:
+        body += f'<p class="faint" style="font-size:12px">{_e(exhibit.note)}</p>'
+    return f'<div class="exhibit">{head}{body}</div>'
 
 
 def render_report(ctx: AgentContext, *, standalone: bool = True, include_trace: bool = True) -> str:
@@ -236,15 +335,7 @@ def render_report(ctx: AgentContext, *, standalone: bool = True, include_trace: 
                     + "</div>"
                 )
             for exhibit in slide.exhibits:
-                if not exhibit.columns:
-                    continue
-                parts.append(
-                    f'<p class="faint mono" style="font-size:10.5px;letter-spacing:.07em;'
-                    f'text-transform:uppercase;margin:16px 0 0">{_e(exhibit.title)}</p>'
-                )
-                parts.append(_table(exhibit.columns, [[_e(c) for c in r] for r in exhibit.rows]))
-                if exhibit.note:
-                    parts.append(f'<p class="faint" style="font-size:12px">{_e(exhibit.note)}</p>')
+                parts.append(_exhibit(exhibit))
 
     # ------------------------------------------------------- risks and gaps
     if register.risks or open_gaps:

@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from cdd_agent.agents.analyst import Analyst
-from cdd_agent.agents.base import AgentContext
+from cdd_agent.agents.base import AgentContext, save_structured_tables
 from cdd_agent.agents.intake import IntakeAgent
 from cdd_agent.agents.risk_auditor import RiskAuditor
 from cdd_agent.agents.synthesizer import Synthesizer
@@ -191,6 +191,7 @@ def request(engagement: str) -> None:
 def ingest(engagement: str, data_room: Path) -> None:
     """Phase 3 - classify, chunk, and index a data-room folder."""
     report, tables = ingest_directory(engagement, data_room)
+    save_structured_tables(StateStore(), engagement, tables)
     console.print(report.summary())
     for entry in report.unstructured:
         console.print(f"  {entry['file']}: {entry['doc_type']}, tier {entry['tier']}, "

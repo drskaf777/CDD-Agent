@@ -22,10 +22,17 @@ from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS
 from cdd_agent.knowledge.outline import tailored_outline
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.schemas.common import ConfidenceTag, OutlineSection
-from cdd_agent.schemas.deck import Claim, Deck, Exhibit, Slide
+from cdd_agent.schemas.deck import Claim, Deck, Exhibit, ExhibitStatus, Slide
 from cdd_agent.schemas.evidence import EvidenceMatrix
 from cdd_agent.schemas.hypothesis import HypothesisTree
-from cdd_agent.schemas.risk import RiskRegister
+from cdd_agent.schemas.risk import GapOwner, InformationGap, RiskRegister
+from cdd_agent.state.store import Collection
+from cdd_agent.synthesis.exhibits import (
+    ExhibitContext,
+    build_all_for_section,
+    build_for_section,
+    is_presentable,
+)
 
 _SYSTEM = """You are writing a commercial due diligence deck for an investment committee.
 
@@ -59,6 +66,24 @@ class Synthesizer(Agent):
         business_model = profile.sector.business_model.value if profile else ""
         outline = tailored_outline(sub_sector, business_model)
 
+        exhibit_ctx = ExhibitContext(
+            tree=tree, matrix=matrix, register=register,
+            # None by design: the Synthesizer holds no computation tool. The
+            # quantitative exhibits arrive precomputed from the Analyst's Phase 3.
+            computation=None,
+            strategic_buyer=self.context.is_strategic_buyer,
+        )
+        self._exhibit_ctx = exhibit_ctx
+        self._precomputed = self._load_computed_exhibits()
+
+        # An exhibit omitted for want of data or a citation is still owed. Logging it
+        # from the *unfiltered* build is what stops omission becoming silence: the
+        # report shows no empty placeholder, and Section 8 shows the outstanding
+        # request. It runs before the slides so Section 8's gap table includes them -
+        # a deck that omits an exhibit and does not ask for its data is worse than one
+        # that shows a placeholder.
+        self._log_omitted_exhibits(outline, register)
+
         slides: list[Slide] = []
         for section in outline:
             if section.number == 0:
@@ -85,6 +110,63 @@ class Synthesizer(Agent):
         if save:
             self.context.memory.save_deck(deck, agent=self.name)
         return deck, report
+
+    def _load_computed_exhibits(self) -> dict[str, Exhibit]:
+        """Exhibits the Analyst computed in Phase 3, keyed by catalogue key."""
+        stored = self.context.store.get(
+            self.context.engagement_id, Collection.EXHIBIT, "computed"
+        )
+        if not stored:
+            return {}
+        out: dict[str, Exhibit] = {}
+        for raw in stored.get("exhibits", []):
+            try:
+                exhibit = Exhibit.model_validate(raw)
+            except Exception:
+                continue
+            if exhibit.key:
+                out[exhibit.key] = exhibit
+        return out
+
+    def _log_omitted_exhibits(self, outline, register: RiskRegister) -> None:
+        """Record the data request behind every exhibit the report leaves out."""
+        import datetime as _dt
+
+        from cdd_agent.synthesis.exhibits import specs_for_section
+
+        profile = self.context.profile
+        ic_date = profile.target.ic_date if profile else None
+        today = _dt.date.today()
+        target = (
+            max(today + _dt.timedelta(days=3), ic_date - _dt.timedelta(days=7))
+            if ic_date and ic_date > today
+            else today + _dt.timedelta(days=14)
+        )
+        existing = {g.request for g in register.gaps}
+        n = len(register.gaps)
+        for section in outline:
+            requires = {s.key: s.requires for s in specs_for_section(section.number)}
+            for exhibit in build_all_for_section(
+                section.number, self._exhibit_ctx, self._precomputed
+            ):
+                if is_presentable(exhibit):
+                    continue
+                request = exhibit.gap_request or requires.get(exhibit.key, "")
+                if not request or request in existing:
+                    continue
+                n += 1
+                existing.add(request)
+                register.gaps.append(InformationGap(
+                    id=f"GAP-EX-{n:03d}",
+                    engagement_id=self.context.engagement_id,
+                    created_by=self.name,
+                    outline_section=section.number,
+                    request=request,
+                    owner=GapOwner.MANAGEMENT,
+                    target_close_date=target,
+                    blocking=False,
+                ))
+        self.context.memory.save_risk_register(register, agent=self.name)
 
     # ------------------------------------------------------------- Section 0
     def _section_0(
@@ -212,7 +294,7 @@ class Synthesizer(Agent):
                     columns=["ID", "Request", "Owner", "Target close", "Blocking", "Stage"],
                     rows=gap_rows,
                 ),
-            ],
+            ] + build_for_section(section.number, self._exhibit_ctx, self._precomputed),
         )
 
     # ------------------------------------------------- evidence-backed sections
@@ -275,7 +357,7 @@ class Synthesizer(Agent):
                         "about it - which is the finding, not a formatting gap."
                     ),
                 )
-            ],
+            ] + build_for_section(section.number, self._exhibit_ctx, self._precomputed),
         )
 
     def _headline(self, section: OutlineSection, claims: list[Claim]) -> str:

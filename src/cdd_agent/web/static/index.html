@@ -268,6 +268,22 @@ td.id { font-family:var(--mono); font-size:12.5px; color:var(--ink-muted); white
 .doc h2:first-child { margin-top:0; }
 .doc .headline { font-weight:600; color:var(--ink); margin:0 0 12px; font-size:15.5px; max-width:70ch; }
 .claim { border-left:2px solid var(--rule); padding:3px 0 3px 13px; margin:0 0 10px; font-size:13.5px; max-width:76ch; }
+/* An exhibit that could not be built is shown as the request that would build it -
+   visibly different from a computed one, so a reader never mistakes a gap for data. */
+.exhibit { margin:14px 0 18px; }
+.exhibit-head { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:7px; }
+.exhibit-head h4 { margin:0; font-size:13.5px; font-weight:600; }
+.exhibit.gap { border:1px dashed var(--rule-strong); border-radius:var(--radius);
+  background:var(--surface-2); padding:12px 15px; }
+.exhibit.gap .req { font-size:13px; color:var(--ink-2); margin:4px 0 0; }
+.chart { display:block; width:100%; height:auto; max-width:640px; }
+.chart .grid { stroke:var(--rule); stroke-width:1; }
+.chart .bar { fill:var(--accent); }
+.chart .axis { fill:var(--ink-faint); font-family:var(--mono); font-size:9px; }
+.chart .val { fill:var(--ink-2); font-family:var(--mono); font-size:9px; }
+.chart .ln { fill:none; stroke-width:2; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:11px; color:var(--ink-muted); margin-top:5px; }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; }
 .claim .src { display:block; font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); margin-top:4px; }
 @media (max-width:940px) {
   .app { grid-template-columns:1fr; grid-template-rows:auto auto auto minmax(0,1fr); }
@@ -828,17 +844,90 @@ function viewDraft(){
         (c.citations.length ? '<span class="src">' + esc(c.citations.map(x =>
           x.source_file + " (" + x.locator + ")").join("; ")) + '</span>' : "") + '</div>';
     });
-    sl.exhibits.forEach(x => {
-      if(!x.columns.length) return;
-      html += '<div class="tablewrap" style="margin:12px 0 16px"><table><caption style="text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:7px">' +
-        esc(x.title) + '</caption><thead><tr>' + x.columns.map(c => '<th>' + esc(c) + '</th>').join("") +
-        '</tr></thead><tbody>' + x.rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c) + '</td>').join("") + '</tr>').join("") +
-        '</tbody></table></div>';
-      if(x.note) html += '<p class="faint" style="font-size:12px;margin:-10px 0 16px">' + esc(x.note) + '</p>';
-    });
+    sl.exhibits.forEach(x => { html += renderExhibit(x); });
   });
   html += "</div></div>";
   return html;
+}
+
+/* ------------------------------------------------------------------ exhibits */
+const STATUS_PILL = {computed:"confirmed", evidenced:"partial", gap:"nodata"};
+
+function renderExhibit(x){
+  const status = x.status || "evidenced";
+  const head = '<div class="exhibit-head"><h4>' + esc(x.title) + '</h4>' +
+    '<span class="pill ' + (STATUS_PILL[status] || "neutral") + '">' + esc(status) + '</span></div>';
+  if(status === "gap"){
+    return '<div class="exhibit gap">' + head +
+      '<p class="req"><strong>Not built.</strong> ' + esc(x.note || "") + '</p>' +
+      '<p class="req faint">Requested: ' + esc(x.gap_request || "") + '</p></div>';
+  }
+  let body = "";
+  if(x.series && x.series.length) body += renderChart(x);
+  if(x.columns && x.columns.length){
+    body += '<div class="tablewrap"><table><thead><tr>' +
+      x.columns.map(c => '<th>' + esc(c) + '</th>').join("") + '</tr></thead><tbody>' +
+      x.rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c) + '</td>').join("") + '</tr>').join("") +
+      '</tbody></table></div>';
+  }
+  if(x.note) body += '<p class="faint" style="font-size:12px;margin:6px 0 0">' + esc(x.note) + '</p>';
+  return '<div class="exhibit">' + head + body + '</div>';
+}
+
+/* Charts are hand-drawn SVG rather than a library: the page loads no external script,
+   and the shapes needed here are few. */
+function renderChart(x){
+  const kind = x.kind, series = x.series;
+  const W = 640, H = 190, L = 46, R = 12, T = 10, B = 30;
+  const iw = W - L - R, ih = H - T - B;
+  const colours = ["var(--accent)","var(--live)","var(--confirmed)","var(--partial)","var(--contradicted)"];
+  const all = series.flatMap(s => s.values);
+  if(!all.length) return "";
+  const max = Math.max(...all, 0), min = Math.min(...all, 0);
+  const span = (max - min) || 1;
+  const y = v => T + ih - ((v - min) / span) * ih;
+  const fmt = v => (x.series[0].unit === "%" ? (v*100).toFixed(0) + "%"
+                    : Math.abs(v) >= 1000 ? (v/1000).toFixed(0) + "k" : String(Math.round(v)));
+  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(x.title) + '">';
+  // zero line / baseline
+  g += '<line class="grid" x1="' + L + '" y1="' + y(Math.max(min,0)) + '" x2="' + (W-R) + '" y2="' + y(Math.max(min,0)) + '"/>';
+  g += '<text class="axis" x="4" y="' + (y(max)+4) + '">' + esc(fmt(max)) + '</text>';
+
+  if(kind === "line"){
+    series.forEach((s, si) => {
+      const n = Math.max(s.values.length - 1, 1);
+      const pts = s.values.map((v,i) => (L + (i/n)*iw) + "," + y(v)).join(" ");
+      g += '<polyline class="ln" points="' + pts + '" stroke="' + colours[si % colours.length] + '"/>';
+    });
+    const labels = series[0].labels || [];
+    labels.forEach((lb,i) => {
+      const n = Math.max(labels.length - 1, 1);
+      g += '<text class="axis" text-anchor="middle" x="' + (L + (i/n)*iw) + '" y="' + (H-10) + '">' + esc(lb) + '</text>';
+    });
+  } else {
+    // bar / waterfall: grouped bars per label
+    const labels = series[0].labels || [];
+    const groups = labels.length || 1;
+    const gw = iw / groups, bw = Math.max(4, (gw * 0.7) / series.length);
+    labels.forEach((lb,i) => {
+      series.forEach((s, si) => {
+        const v = s.values[i]; if(v == null) return;
+        const cx = L + i*gw + gw*0.15 + si*bw;
+        const top = Math.min(y(v), y(0)), h = Math.max(1, Math.abs(y(v) - y(0)));
+        g += '<rect class="bar" x="' + cx + '" y="' + top + '" width="' + bw + '" height="' + h +
+             '" fill="' + colours[si % colours.length] + '"/>';
+        if(series.length === 1)
+          g += '<text class="val" text-anchor="middle" x="' + (cx+bw/2) + '" y="' + (top-3) + '">' + esc(fmt(v)) + '</text>';
+      });
+      g += '<text class="axis" text-anchor="middle" x="' + (L + i*gw + gw/2) + '" y="' + (H-10) + '">' + esc(lb) + '</text>';
+    });
+  }
+  g += '</svg>';
+  if(series.length > 1){
+    g += '<div class="legend">' + series.map((s,si) =>
+      '<span><i style="background:' + colours[si % colours.length] + '"></i>' + esc(s.name) + '</span>').join("") + '</div>';
+  }
+  return g;
 }
 
 /* --------------------------------------------------------------------- trace */

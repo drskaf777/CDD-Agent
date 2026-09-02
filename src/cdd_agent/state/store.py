@@ -35,6 +35,8 @@ class Collection(str, Enum):
     RISK_REGISTER = "risk_register"
     CITATION_LOG = "citation_log"         # chunk -> source, per the v6.7 diagram
     TRACE = "trace"                       # Thought -> Action -> Observation steps
+    EXHIBIT = "exhibit"                   # quantitative exhibits computed in Phase 3
+    STRUCTURED = "structured"             # parsed tabular data-room files
     DECK = "deck"
     ESCALATION = "escalation"
     CORRECTION = "correction"             # user corrections, replayed across engagements

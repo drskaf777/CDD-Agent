@@ -123,3 +123,13 @@ def tree(profile):
             ),
         ],
     )
+
+
+@pytest.fixture
+def context(store, profile):
+    """An engagement with a saved profile, for tests that exercise a whole agent."""
+    from cdd_agent.agents.base import AgentContext
+
+    ctx = AgentContext.create(profile.engagement_id, store=store, profile=profile)
+    ctx.memory.save_deal_profile(profile, agent="test")
+    return ctx

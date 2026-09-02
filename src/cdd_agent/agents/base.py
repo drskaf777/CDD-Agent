@@ -15,8 +15,42 @@ from cdd_agent.config import Settings, get_settings
 from cdd_agent.guardrails.authorization import AgentRole, ToolAuthorization
 from cdd_agent.schemas.deal_profile import DealProfile
 from cdd_agent.state.memory import LongTermMemory
-from cdd_agent.state.store import StateStore
+from cdd_agent.state.store import Collection, StateStore
 from cdd_agent.tools.registry import ToolBundle, ToolRegistry
+
+
+def save_structured_tables(store: "StateStore", engagement_id: str, tables, *,
+                           agent: str = "Controller") -> int:
+    """Persist parsed tabular files so later phases can still compute from them."""
+    payload = [
+        {"source_file": t.source_file, "name": t.name, "columns": list(t.columns),
+         "rows": t.rows,
+         "document_date": t.document_date.isoformat() if t.document_date else None}
+        for t in tables
+    ]
+    store.put(engagement_id, Collection.STRUCTURED, "tables", {"tables": payload},
+              agent=agent)
+    return len(payload)
+
+
+def load_structured_tables(store: "StateStore", engagement_id: str) -> list:
+    """Rebuild the parsed tables saved at ingestion."""
+    import datetime as _dt
+
+    from cdd_agent.retrieval.ingestion import StructuredTable
+
+    stored = store.get(engagement_id, Collection.STRUCTURED, "tables")
+    if not stored:
+        return []
+    out = []
+    for raw in stored.get("tables", []):
+        date = raw.get("document_date")
+        out.append(StructuredTable(
+            source_file=raw["source_file"], name=raw["name"],
+            columns=list(raw.get("columns", [])), rows=raw.get("rows", []),
+            document_date=_dt.date.fromisoformat(date) if date else None,
+        ))
+    return out
 
 
 @dataclass
@@ -41,6 +75,12 @@ class AgentContext:
     ) -> "AgentContext":
         store = store or StateStore()
         memory = LongTermMemory(store, engagement_id)
+        if not tables:
+            # Parsed tables used to live only in the ingesting process, so a restart
+            # silently stripped the computation tool of its inputs and every
+            # quantitative exhibit degraded to a gap. They are engagement data, so
+            # they belong in the store like every other artifact.
+            tables = tuple(load_structured_tables(store, engagement_id))
         profile = profile if profile is not None else memory.deal_profile()
         authorization = ToolAuthorization(profile)
         return cls(

@@ -124,7 +124,9 @@ class StructuredComputationTool:
             {
                 "bucket": f"top {n}",
                 "revenue": round(float(grouped.head(n).sum()), 2),
-                "share_of_total": round(float(grouped.head(n).sum()) / total, 4),
+                # Not rounded: precision belongs at the point of display, and a
+                # rounded share stored here also drives chart series downstream.
+                "share_of_total": float(grouped.head(n).sum()) / total,
             }
             for n in top_n
             if n <= len(grouped)
@@ -138,6 +140,41 @@ class StructuredComputationTool:
             columns=["bucket", "revenue", "share_of_total"],
             citation=self._cite(table, [customer_column, revenue_column], "concentration schedule"),
             note=f"{len(grouped)} customers, total {total:,.0f}",
+        )
+
+    def herfindahl(
+        self, table: str, name_column: str, revenue_column: str
+    ) -> ComputationResult:
+        """Market share by player plus the Herfindahl-Hirschman Index.
+
+        HHI is the sum of squared percentage shares, on the conventional 0-10,000
+        scale: below 1,500 unconcentrated, 1,500-2,500 moderately concentrated, above
+        2,500 concentrated. Computed rather than characterised, so the threshold call
+        is arithmetic and not an opinion.
+        """
+        df = self.frame(table)
+        _require(df, [name_column, revenue_column], table)
+        df = df.copy()
+        df[revenue_column] = _numeric(df[revenue_column])
+        grouped = (
+            df.groupby(name_column)[revenue_column].sum().sort_values(ascending=False)
+        )
+        total = float(grouped.sum())
+        if total <= 0:
+            raise ComputationError(f"total {revenue_column} in {table!r} is not positive")
+        rows = [
+            {"name": str(name), "revenue": round(float(value), 2),
+             "share": float(value) / total}
+            for name, value in grouped.items()
+        ]
+        hhi = sum((r["share"] * 100) ** 2 for r in rows)
+        return ComputationResult(
+            name="market concentration (HHI)",
+            value=round(hhi, 1),
+            table=rows,
+            columns=["name", "revenue", "share"],
+            citation=self._cite(table, [name_column, revenue_column], "HHI"),
+            note=f"{len(rows)} players, total {total:,.0f}",
         )
 
     def arr_bridge(

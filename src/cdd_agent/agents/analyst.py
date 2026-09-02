@@ -257,7 +257,29 @@ class Analyst(Agent):
             self.context.memory.save_evidence_matrix(matrix, agent=self.name)
             self._save_gaps(report.gaps_logged)
             self._save_trace(report)
+            # Design spec s VI step 4: quantitative analysis - cohort builds, revenue
+            # bridges, concentration - is the Analyst's work, done before slide
+            # generation at step 6. Computing it here keeps the Synthesizer free of a
+            # computation tool it has no business holding.
+            self.compute_exhibits(tree, matrix)
         return matrix, report
+
+    def compute_exhibits(self, tree: HypothesisTree, matrix: EvidenceMatrix) -> list:
+        """Build and store the quantitative exhibits from the parsed data-room tables."""
+        from cdd_agent.synthesis.exhibits import ExhibitContext, build_computed
+
+        exhibits = build_computed(ExhibitContext(
+            tree=tree, matrix=matrix,
+            register=self.context.memory.risk_register(),
+            computation=self.tools().computation,
+            strategic_buyer=self.context.is_strategic_buyer,
+        ))
+        self.context.store.put(
+            self.context.engagement_id, Collection.EXHIBIT, "computed",
+            {"exhibits": [e.model_dump(mode="json") for e in exhibits]},
+            agent=self.name,
+        )
+        return exhibits
 
     # --------------------------------------------------------------- internals
     def _weakest_tier1(
