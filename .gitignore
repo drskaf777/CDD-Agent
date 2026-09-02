@@ -3,7 +3,12 @@ __pycache__/
 .venv/
 .venv313/
 venv/
+# Every .env variant, not just the exact name. A safety copy (.env.backup, .env.bak,
+# .env.local) holds the same secrets as the original, and an exact-name rule let one
+# get committed. .env.example is the only one that may be tracked.
 .env
+.env.*
+!.env.example
 *.egg-info/
 dist/
 build/
