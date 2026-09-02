@@ -17,6 +17,7 @@ Scoring is deliberately split:
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -71,6 +72,21 @@ class CriticVerdict(BaseModel):
     sub_sector_reason: str = ""
     testability_reason: str = ""
     notes: str = ""
+
+
+def _configure_crewai_tracing(enabled: bool) -> None:
+    """State the tracing preference explicitly, whichever way it is set.
+
+    CrewAI asks "Would you like to view your execution traces? [y/N]" with a
+    20-second timeout only while the preference is *unset* - and it asks on every
+    kickoff, which is three times per Phase-1 search since each branch gets its own
+    Crew. That is an interactive block in a non-interactive pipeline.
+
+    Answering it in the environment removes the prompt without giving up the traces:
+    tracing stays on unless CDD_CREWAI_TRACING says otherwise. This is set before any
+    crew is constructed, because CrewAI reads it when its telemetry module imports.
+    """
+    os.environ["CREWAI_TRACING_ENABLED"] = "true" if enabled else "false"
 
 
 class Critic:
@@ -135,6 +151,8 @@ class Critic:
         return obs.render()
 
     def _crew_verdict(self, tree: HypothesisTree) -> CriticVerdict:
+        _configure_crewai_tracing(self.settings.crewai_tracing)
+
         from crewai import Agent as CrewAgent
         from crewai import Crew, Task
 
@@ -167,7 +185,10 @@ class Critic:
             agent=critic,
             output_pydantic=CriticVerdict,
         )
-        result = Crew(agents=[critic], tasks=[task], verbose=False).kickoff()
+        result = Crew(
+            agents=[critic], tasks=[task], verbose=False,
+            tracing=self.settings.crewai_tracing,
+        ).kickoff()
         verdict = getattr(result, "pydantic", None)
         if isinstance(verdict, CriticVerdict):
             return verdict

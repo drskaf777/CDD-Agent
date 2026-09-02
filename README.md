@@ -134,6 +134,19 @@ $env:CDD_CHROMA_DIR="./data/chroma-313"; $env:CDD_DATA_DIR="./data313"
 Default model is `claude-opus-5`; override with `CDD_MODEL`. Live intake reads the
 briefing for real, so `cdd run --briefing demo/briefing.md` works without the fixture.
 
+**CrewAI traces.** The Critic runs on CrewAI, which collects execution traces and — while
+the preference is unset — asks whether to show them, with a 20-second timeout, on *every*
+kickoff. Phase 1 scores three branches in three separate crews, so that is three
+interactive prompts in a non-interactive pipeline. The preference is therefore always
+stated explicitly. Traces are **on** by default; turn them off with:
+
+```powershell
+$env:CDD_CREWAI_TRACING="false"
+```
+
+If you answered "N" to that prompt at some point, CrewAI saved it. Setting
+`CDD_CREWAI_TRACING=true` overrides the saved preference on the next run.
+
 ## Run the demo engagement
 
 Project Sentinel is a worked B2B cybersecurity SaaS deal with a cross-sell thesis and a

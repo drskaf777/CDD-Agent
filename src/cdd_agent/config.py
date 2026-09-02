@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Identity-linked API keys must name the workspace they act in; the API rejects
     # the request otherwise. Console -> Settings -> Workspaces, id looks like wrkspc_...
     workspace_id: str = ""
+    # CrewAI execution traces for the Critic. On by default - they are the Critic's
+    # own view of its reasoning, which is worth having next to ours.
+    crewai_tracing: bool = True
 
     # --- Storage ---
     data_dir: Path = Path("./data")
