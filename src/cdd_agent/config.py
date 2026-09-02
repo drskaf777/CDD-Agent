@@ -19,7 +19,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # read straight from os.environ by langchain-anthropic and by CrewAI's provider - so
 # without this, a key placed in .env is silently ignored and the run fails on auth.
 # override=False, so a value already in the shell always wins.
-load_dotenv(override=False)
+#
+# The path is explicit: a bare load_dotenv() locates the file by walking caller stack
+# frames, which raises AssertionError when there is no frame to walk (exec'd code, a
+# frozen build, a -c invocation) - an import-time crash for a convenience. Naming the
+# file also makes it resolve relative to the working directory, the same way
+# CDD_DATA_DIR and CDD_CHROMA_DIR do.
+try:
+    load_dotenv(".env", override=False)
+except Exception:  # pragma: no cover - a missing or unreadable .env is not fatal
+    pass
 
 
 class Settings(BaseSettings):
