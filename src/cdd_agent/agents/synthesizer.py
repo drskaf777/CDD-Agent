@@ -310,17 +310,42 @@ class Synthesizer(Agent):
             response = (prompt | get_chat_model()).invoke(
                 {"number": section.number, "title": section.title, "body": body}
             )
-            headline = getattr(response, "content", "")
-            headline = headline if isinstance(headline, str) else str(headline)
-            headline = headline.strip().strip('"')
+            headline = _response_text(response).strip().strip('"')
         except Exception:
             # A failed headline call must not take the deck down; the deterministic
             # headline is always available and is never ungrounded.
             return deterministic
-        return headline or deterministic
+        # A headline is one sentence. Anything wildly long is a malformed response,
+        # not a headline - prefer the deterministic one over putting it on a slide.
+        if not headline or len(headline) > 400:
+            return deterministic
+        return headline
 
 
 # --------------------------------------------------------------------- helpers
+def _response_text(response: object) -> str:
+    """Pull the assistant text out of a chat response.
+
+    On a thinking-enabled model the content is a *list* of blocks - thinking first,
+    then text - not a string. Stringifying the list put raw thinking blocks, including
+    their signatures, on the slides. Only text blocks are headline material.
+    """
+    content = getattr(response, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+    return ""
+
+
 def _hypotheses_for_question(tree: HypothesisTree, key: str) -> list[str]:
     from cdd_agent.knowledge.four_question_test import classify
 
