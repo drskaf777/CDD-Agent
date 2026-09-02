@@ -16,6 +16,17 @@ from typing import Any, Optional
 from cdd_agent.config import get_settings
 
 
+def anthropic_headers() -> dict[str, str]:
+    """Extra headers every Anthropic client in this project needs.
+
+    An identity-linked API key is scoped to a person rather than a workspace, so the
+    API requires `anthropic-workspace-id` to know which workspace the call acts in.
+    Ordinary keys carry that implicitly and need nothing here.
+    """
+    workspace = get_settings().workspace_id.strip()
+    return {"anthropic-workspace-id": workspace} if workspace else {}
+
+
 def get_chat_model(
     *, model: Optional[str] = None, temperature: Optional[float] = None
 ) -> Any:
@@ -32,6 +43,9 @@ def get_chat_model(
         "model": model or settings.model,
         "max_tokens": settings.max_tokens,
     }
+    headers = anthropic_headers()
+    if headers:
+        kwargs["default_headers"] = headers
     # Sampling parameters are rejected on Opus 5 / Sonnet 5 and the 4.7+ family;
     # only pass one when a caller explicitly asks and the model still accepts it.
     if temperature is not None:
@@ -72,7 +86,12 @@ def get_crew_llm(*, model: Optional[str] = None) -> Any:
             "pipeline, it will not pick up an `ant auth login` profile."
         )
 
-    return LLM(model=f"anthropic/{model or settings.critic_model}")
+    headers = anthropic_headers()
+    llm_kwargs: dict[str, Any] = {"model": f"anthropic/{model or settings.critic_model}"}
+    if headers:
+        # CrewAI merges client_params into the Anthropic client constructor.
+        llm_kwargs["client_params"] = {"default_headers": headers}
+    return LLM(**llm_kwargs)
 
 
 def structured(model: Any, schema: type) -> Any:

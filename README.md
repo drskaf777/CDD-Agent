@@ -110,6 +110,17 @@ $env:CDD_OFFLINE="0"
 .venv313\Scripts\cdd preflight --data-room demo/data_room
 ```
 
+**Identity-linked keys need a workspace id.** A key scoped to a person rather than a
+workspace is rejected with `400 anthropic-workspace-id is required`. Set the workspace
+it should act in — Console → Settings → Workspaces, the id looks like `wrkspc_...`:
+
+```powershell
+$env:CDD_WORKSPACE_ID="wrkspc_..."
+```
+
+The header is then sent by both the LangChain client and CrewAI's Anthropic provider.
+Ordinary keys carry the workspace implicitly and need nothing here.
+
 Preflight makes one minimal model call — a fraction of a cent — because a key being
 *present* is not the same as a key that *works*. Pass `--no-call` to skip it.
 

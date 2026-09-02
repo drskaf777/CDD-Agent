@@ -54,6 +54,15 @@ def _check_mode(pf: Preflight) -> bool:
     return not settings.offline
 
 
+def _check_workspace(pf: Preflight) -> None:
+    workspace = get_settings().workspace_id.strip()
+    pf.add(Check(
+        "workspace id", True,
+        workspace if workspace else "not set (only needed for identity-linked keys)",
+        fatal=False,
+    ))
+
+
 def _check_credentials(pf: Preflight) -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     present = bool(key.strip())
@@ -96,8 +105,23 @@ def _check_langchain(pf: Preflight, live_call: bool) -> None:
         text = text if isinstance(text, str) else str(text)
         pf.add(Check("live model call", True, f"answered {text.strip()[:40]!r}"))
     except Exception as exc:
-        pf.add(Check("live model call", False, f"{type(exc).__name__}: {str(exc)[:200]}",
-                     fix="check the key is valid and has credit"))
+        message = str(exc)
+        # An identity-linked key is a specific, fixable condition - not a bad key.
+        # Saying "check the key is valid" here sends you to re-issue a working key.
+        if "anthropic-workspace-id" in message:
+            fix = (
+                "This key is identity-linked, so it must name the workspace it acts in. "
+                "Find the id in the Console under Settings -> Workspaces (it looks like "
+                'wrkspc_...), then set CDD_WORKSPACE_ID: $env:CDD_WORKSPACE_ID="wrkspc_..."'
+            )
+        elif "authentication_error" in message or "invalid x-api-key" in message:
+            fix = "the key was rejected - check it was pasted whole"
+        elif "credit balance" in message or "billing" in message.lower():
+            fix = "the key is valid but the account has no credit"
+        else:
+            fix = "check the key is valid and has credit"
+        pf.add(Check("live model call", False, f"{type(exc).__name__}: {message[:220]}",
+                     fix=fix))
 
 
 def _check_critic(pf: Preflight) -> None:
@@ -164,6 +188,7 @@ def run_preflight(
     pf = Preflight()
     live = _check_mode(pf)
     has_key = _check_credentials(pf)
+    _check_workspace(pf)
     if live and has_key:
         _check_langchain(pf, live_call)
         _check_critic(pf)

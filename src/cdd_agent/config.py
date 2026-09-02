@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     critic_model: str = "claude-opus-5"
     effort: str = "high"
     max_tokens: int = 16_000
+    # Identity-linked API keys must name the workspace they act in; the API rejects
+    # the request otherwise. Console -> Settings -> Workspaces, id looks like wrkspc_...
+    workspace_id: str = ""
 
     # --- Storage ---
     data_dir: Path = Path("./data")
