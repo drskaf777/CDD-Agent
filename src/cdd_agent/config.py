@@ -10,8 +10,16 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Load .env into the process environment, not just into Settings. pydantic-settings
+# reads .env for CDD_-prefixed fields only, but ANTHROPIC_API_KEY has no prefix and is
+# read straight from os.environ by langchain-anthropic and by CrewAI's provider - so
+# without this, a key placed in .env is silently ignored and the run fails on auth.
+# override=False, so a value already in the shell always wins.
+load_dotenv(override=False)
 
 
 class Settings(BaseSettings):
