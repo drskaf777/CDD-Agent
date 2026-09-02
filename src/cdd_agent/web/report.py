@@ -261,7 +261,7 @@ def render_report(ctx: AgentContext, *, standalone: bool = True, include_trace: 
     matrix = mem.evidence_matrix()
     register = mem.risk_register()
     deck = mem.deck()
-    applicable = applicable_categories(ctx.is_strategic_buyer)
+    applicable = applicable_categories(ctx.deal_shape)
 
     target = profile.target.legal_name if profile else ctx.engagement_id
     title = f"{target} — Commercial Due Diligence"

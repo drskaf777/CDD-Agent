@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from cdd_agent.schemas.common import Tier
+from cdd_agent.schemas.deal_profile import DealShape, TransactionStructure
 
 
 @dataclass(frozen=True)
@@ -168,4 +169,121 @@ CATEGORIES: tuple[str, ...] = (
     "Management & HR",
     "IT & Data Infrastructure",
     "ESG & Regulatory",
+    "Public Record",
 )
+
+
+# --- Listed targets -----------------------------------------------------------
+# Two things change when the target is public. First, much of the standard request
+# is already answered in the public record, and asking management for it wastes the
+# one scarce resource in a live process - their attention - while signalling that
+# nobody read the filings. Second, a set of questions opens up that exists only
+# because there is a share price and there are other shareholders.
+
+# Catalogue items the public record normally answers. Matched on a distinctive
+# fragment of the item text, so rewording an item does not silently re-request it.
+PUBLICLY_ANSWERABLE: dict[str, str] = {
+    "Audited/reviewed financials": "Annual report / 10-K, audited and filed",
+    "Revenue by product, geography": "Segment and geographic disclosure in the "
+                                     "annual report - note the reported segments are "
+                                     "usually coarser than the commercial question",
+    "Litigation and regulatory-inquiry log": "Legal proceedings and risk factors in "
+                                             "the annual report",
+    "Cap table and ownership structure": "Proxy statement and institutional holdings "
+                                         "filings",
+    "Organizational chart with legal-entity map": "Subsidiary list filed as an "
+                                                  "exhibit to the annual report",
+    "IP/patent register": "Public patent register and the IP discussion in the "
+                          "annual report",
+    "Debt schedule and covenant headroom": "Debt footnote and covenant discussion in "
+                                           "the filings",
+}
+
+PUBLIC_TARGET_ADDONS: tuple[CatalogItem, ...] = (
+    CatalogItem("Public Record", "Last three annual reports and every interim report "
+                "since", Tier.DEAL_CRITICAL,
+                rationale="The baseline the market already prices. Retrieved, not "
+                          "requested."),
+    CatalogItem("Public Record", "Earnings-call transcripts and investor-day "
+                "materials for the last eight quarters", Tier.DEPTH_BUILDING,
+                rationale="Guidance against delivery is the cheapest available test "
+                          "of management credibility."),
+    CatalogItem("Public Record", "Proxy statement: board composition, executive "
+                "incentives, and ownership", Tier.DEPTH_BUILDING),
+    CatalogItem("Public Record", "Published consensus estimates and the dispersion "
+                "around them", Tier.DEPTH_BUILDING,
+                rationale="Sets the bar the thesis must beat. Not corroboration - "
+                          "analysts are guided by the company."),
+    CatalogItem("Commercial / Sales", "Reconciliation of reported segments to the "
+                "internal commercial view (product, motion, segment)",
+                Tier.DEAL_CRITICAL,
+                rationale="Reported segments are built for disclosure, not for "
+                          "diligence - the commercial question sits below them."),
+    CatalogItem("Financial Records", "Bridge from reported to the adjusted figures "
+                "used in the equity story, each adjustment named", Tier.DEAL_CRITICAL,
+                rationale="The gap between reported and adjusted is where a listed "
+                          "SaaS story is most often made."),
+    CatalogItem("Financial Records", "Cost of being a listed company, itemised",
+                Tier.DEPTH_BUILDING,
+                rationale="A real saving on a take-private, and a cost that stays on "
+                          "any structure keeping the listing."),
+)
+
+# Structure-specific. Requested only for the structure that needs them.
+MINORITY_STAKE_REQUESTS: tuple[CatalogItem, ...] = (
+    CatalogItem("Corporate & Legal", "Governance terms on offer: board seats, "
+                "consent rights, standstill", Tier.DEAL_CRITICAL,
+                rationale="Decides whether the plan being underwritten can be "
+                          "influenced at all, or only hoped for."),
+    CatalogItem("Corporate & Legal", "Information rights offered post-close, and "
+                "whether accepting them restricts trading", Tier.DEAL_CRITICAL,
+                rationale="Monitoring rights and tradability pull against each "
+                          "other - taking the first forfeits the second."),
+    CatalogItem("Commercial / Sales", "Average daily traded volume and free-float "
+                "history", Tier.DEPTH_BUILDING,
+                rationale="The exit constraint on a block of this size."),
+)
+
+CONTROL_STAKE_REQUESTS: tuple[CatalogItem, ...] = (
+    CatalogItem("Corporate & Legal", "Related-party transaction policy and the "
+                "minority protections that constrain value capture",
+                Tier.DEAL_CRITICAL),
+    CatalogItem("Corporate & Legal", "Continued-listing and free-float requirements "
+                "of the exchange", Tier.DEPTH_BUILDING),
+    CatalogItem("Management & HR", "Board composition and independence requirements "
+                "under the controlled-company regime", Tier.DEPTH_BUILDING),
+)
+
+TAKE_PRIVATE_REQUESTS: tuple[CatalogItem, ...] = (
+    CatalogItem("Corporate & Legal", "Constitutional documents: approval thresholds, "
+                "defences, and change-of-control provisions", Tier.DEAL_CRITICAL),
+    CatalogItem("Corporate & Legal", "Change-of-control and consent provisions in the "
+                "top customer and partner contracts", Tier.DEAL_CRITICAL,
+                rationale="A commercial question, not only a legal one: consents "
+                          "that can be withheld are revenue at risk on close."),
+    CatalogItem("Management & HR", "Management rollover intentions and retention "
+                "terms post-delisting", Tier.DEAL_CRITICAL),
+    CatalogItem("Financial Records", "Financing package terms and the leverage the "
+                "plan actually supports", Tier.DEPTH_BUILDING),
+)
+
+REQUESTS_BY_STRUCTURE: dict[str, tuple[CatalogItem, ...]] = {
+    TransactionStructure.PUBLIC_MINORITY_STAKE.value: MINORITY_STAKE_REQUESTS,
+    TransactionStructure.PUBLIC_CONTROL_STAKE.value: CONTROL_STAKE_REQUESTS,
+    TransactionStructure.TAKE_PRIVATE.value: TAKE_PRIVATE_REQUESTS,
+}
+
+
+def public_record_note(item: str) -> str:
+    """Where the public record already answers a catalogue item, if it does."""
+    for fragment, where in PUBLICLY_ANSWERABLE.items():
+        if fragment.lower() in item.lower():
+            return where
+    return ""
+
+
+def catalog_for(shape: DealShape) -> tuple[CatalogItem, ...]:
+    """The listed-target additions in scope for this structure."""
+    if not shape.public_target:
+        return ()
+    return PUBLIC_TARGET_ADDONS + REQUESTS_BY_STRUCTURE.get(shape.structure.value, ())

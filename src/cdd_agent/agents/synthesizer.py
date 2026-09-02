@@ -20,6 +20,7 @@ from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.guardrails.output_contract import ContractReport, check_deck
 from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS
 from cdd_agent.knowledge.outline import tailored_outline
+from cdd_agent.schemas.deal_profile import PublicMarketContext
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.schemas.common import ConfidenceTag, OutlineSection
 from cdd_agent.schemas.deck import Claim, Deck, Exhibit, ExhibitStatus, Slide
@@ -64,14 +65,17 @@ class Synthesizer(Agent):
         profile = self.context.profile
         sub_sector = profile.sector.sub_sector if profile else ""
         business_model = profile.sector.business_model.value if profile else ""
-        outline = tailored_outline(sub_sector, business_model)
+        outline = tailored_outline(sub_sector, business_model, self.context.deal_shape)
 
         exhibit_ctx = ExhibitContext(
             tree=tree, matrix=matrix, register=register,
             # None by design: the Synthesizer holds no computation tool. The
             # quantitative exhibits arrive precomputed from the Analyst's Phase 3.
             computation=None,
-            strategic_buyer=self.context.is_strategic_buyer,
+            shape=self.context.deal_shape,
+            public=(self.context.profile.public_market
+                    if self.context.profile else PublicMarketContext()),
+            access=self.context.profile.access if self.context.profile else None,
         )
         self._exhibit_ctx = exhibit_ctx
         self._precomputed = self._load_computed_exhibits()
@@ -285,7 +289,7 @@ class Synthesizer(Agent):
                     rows=risk_rows,
                     note=(
                         "Taxonomy coverage: "
-                        f"{register.coverage(applicable_categories(self.context.is_strategic_buyer)):.0%}"
+                        f"{register.coverage(applicable_categories(self.context.deal_shape)):.0%}"
                     ),
                 ),
                 Exhibit(

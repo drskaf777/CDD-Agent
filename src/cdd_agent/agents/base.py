@@ -13,7 +13,7 @@ from typing import Optional
 
 from cdd_agent.config import Settings, get_settings
 from cdd_agent.guardrails.authorization import AgentRole, ToolAuthorization
-from cdd_agent.schemas.deal_profile import DealProfile
+from cdd_agent.schemas.deal_profile import DealProfile, DealShape
 from cdd_agent.state.memory import LongTermMemory
 from cdd_agent.state.store import Collection, StateStore
 from cdd_agent.tools.registry import ToolBundle, ToolRegistry
@@ -110,6 +110,16 @@ class AgentContext:
         return bool(
             self.profile and self.profile.buyer.buyer_type.value.startswith("corporate")
         )
+
+    @property
+    def deal_shape(self) -> DealShape:
+        """Buyer type, listing status and structure - the axes that change behaviour.
+
+        Passed wherever `is_strategic_buyer` used to go, so a listed target reaches
+        the risk taxonomy, the outline and the exhibits without a second parameter
+        being threaded through every signature.
+        """
+        return DealShape.from_profile(self.profile)
 
 
 class Agent:

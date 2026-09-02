@@ -19,10 +19,17 @@ Nothing here calls a model. Every number is computed or cited.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from cdd_agent.knowledge.four_question_test import classify
+from cdd_agent.schemas.common import Citation, SourceKind
+from cdd_agent.schemas.deal_profile import (
+    AccessConstraints,
+    DealShape,
+    PublicMarketContext,
+    TransactionStructure,
+)
 from cdd_agent.schemas.deck import Exhibit, ExhibitStatus, Series
 from cdd_agent.schemas.evidence import EvidenceMatrix
 from cdd_agent.schemas.hypothesis import HypothesisTree
@@ -44,6 +51,18 @@ class ExhibitSpec:
     # The data request that would let this exhibit be built for real.
     requires: str
     builder: str
+    # Listed targets only, optionally narrowed to particular structures. A minority
+    # holder and a bidder taking the company private are looking at the same company
+    # and asking different questions of it, so they should not get the same exhibits.
+    public_only: bool = False
+    structures: tuple[str, ...] = ()
+
+    def applies_to(self, shape: "DealShape | None") -> bool:
+        if not self.public_only:
+            return True
+        if shape is None or not shape.public_target:
+            return False
+        return not self.structures or shape.structure.value in self.structures
 
 
 # Ordered by outline section. Titles follow standard CDD practice so a reader
@@ -105,11 +124,46 @@ CATALOGUE: tuple[ExhibitSpec, ...] = (
     ExhibitSpec("regulatory_heatmap", "Regulatory and compliance heatmap", 8, "heatmap",
                 "Licence and permit schedule, plus pending regulatory change with "
                 "expected effective dates", "regulatory_heatmap"),
+    # --- Listed targets ---
+    ExhibitSpec("ownership_control", "Ownership, control and register", 3, "table",
+                "Shareholder register, free float, and any dual-class or founder "
+                "holdings, with the disclosure threshold under the governing law",
+                "ownership_control", public_only=True),
+    ExhibitSpec("guidance_delivery", "Guidance to the market against delivery", 6,
+                "table",
+                "Guided figure and reported outcome for each of the last eight "
+                "quarters, from the filings and transcripts",
+                "guidance_delivery", public_only=True),
+    ExhibitSpec("market_context", "Unaffected price and reference date", 7, "table",
+                "Unaffected share price, the date the market was last uninformed of "
+                "the approach, shares outstanding, and the 52-week range",
+                "market_context", public_only=True),
+    ExhibitSpec("consensus_vs_plan",
+                "Published consensus against the management plan", 7, "table",
+                "Consensus estimates with dispersion, and the management operating "
+                "model on the same line items",
+                "consensus_vs_plan", public_only=True),
+    ExhibitSpec("mnpi_status", "MNPI and wall-crossing status", 8, "table",
+                "Compliance confirmation of the trading restriction and the parties "
+                "wall-crossed",
+                "mnpi_status", public_only=True),
+    ExhibitSpec("influence_rights", "Influence rights secured", 8, "table",
+                "Draft shareholder agreement or term sheet: board seats, consent "
+                "rights, information rights and standstill",
+                "influence_rights", public_only=True,
+                structures=(TransactionStructure.PUBLIC_MINORITY_STAKE.value,)),
+    ExhibitSpec("completion_conditions", "Completion conditions and approvals", 8,
+                "table",
+                "Constitutional approval thresholds, regulatory clearance list, and "
+                "any change-of-control consents in the top customer contracts",
+                "completion_conditions", public_only=True,
+                structures=(TransactionStructure.PUBLIC_CONTROL_STAKE.value,
+                            TransactionStructure.TAKE_PRIVATE.value)),
 )
 
-
-def specs_for_section(section: int) -> list[ExhibitSpec]:
-    return [s for s in CATALOGUE if s.section == section]
+def specs_for_section(section: int,
+                      shape: "DealShape | None" = None) -> list[ExhibitSpec]:
+    return [s for s in CATALOGUE if s.section == section and s.applies_to(shape)]
 
 
 # --------------------------------------------------------------------- context
@@ -138,7 +192,15 @@ class ExhibitContext:
     matrix: EvidenceMatrix
     register: RiskRegister
     computation: Optional[StructuredComputationTool]
-    strategic_buyer: bool = False
+    shape: DealShape = field(default_factory=DealShape)
+    # Public-market facts the intake supplied. Never inferred, so an exhibit that
+    # needs a share price and has none is a gap like any other.
+    public: PublicMarketContext = field(default_factory=PublicMarketContext)
+    access: Optional[AccessConstraints] = None
+
+    @property
+    def strategic_buyer(self) -> bool:
+        return self.shape.strategic_buyer
 
     def evidence_about(self, *terms: str) -> list:
         """Evidence whose claim or quoted source mentions any of these terms.
@@ -566,6 +628,204 @@ def regulatory_heatmap(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     return _risk_table(ctx, spec, (RiskCategory.REGULATORY,))
 
 
+
+# ------------------------------------------------- listed-target exhibits
+def _intake_citation(locator: str) -> Citation:
+    """Attribute a buyer-stated fact to the artifact that recorded it.
+
+    These figures are not evidence in the diligence sense - nobody has verified them
+    - but they are traceable to a stored artifact with an author and a timestamp,
+    which is the standard every other cell in the deck is held to.
+    """
+    return Citation(source_kind=SourceKind.INTAKE,
+                    source_file="Deal Profile Brief (intake)", locator=locator)
+
+
+def _fmt(value, suffix: str = "") -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        text = f"{value:,.2f}".rstrip("0").rstrip(".")
+        return f"{text}{suffix}"
+    return f"{value}{suffix}"
+
+
+def market_context(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """The price the deal is measured against.
+
+    A premium is only meaningful against an unaffected price on a stated date. Where
+    intake gave neither, this is a gap: an exhibit headed "unaffected price" that
+    quietly used the latest close would misstate every premium computed from it.
+    """
+    p = ctx.public
+    rows = []
+    if p.unaffected_share_price is not None:
+        rows.append(["Unaffected share price",
+                     _fmt(p.unaffected_share_price) + (f" {p.currency}" if p.currency else ""),
+                     _fmt(p.unaffected_price_date) or "date not stated"])
+    if p.unaffected_share_price is not None and p.shares_outstanding_m is not None:
+        equity = p.unaffected_share_price * p.shares_outstanding_m
+        rows.append(["Equity value at the unaffected price",
+                     f"{equity:,.0f}m" + (f" {p.currency}" if p.currency else ""),
+                     "computed: price x shares outstanding"])
+    if p.shares_outstanding_m is not None:
+        rows.append(["Shares outstanding", _fmt(p.shares_outstanding_m, "m"), "as stated at intake"])
+    if not rows:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["Measure", "Value", "Basis"], rows=rows,
+        citations=[_intake_citation("Category A: public-market context")],
+        note="As stated at intake and not verified against market data. The premium "
+             "the base case must clear is measured from this price, so an incorrect "
+             "reference date misstates every figure derived from it.",
+    )
+
+
+def ownership_control(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """Who actually decides the outcome, which is rarely the largest bidder."""
+    p = ctx.public
+    fields = (
+        ("Free float", _fmt(p.free_float_pct, "%")),
+        ("Insider / founder holding", _fmt(p.insider_or_founder_stake_pct, "%")),
+        ("Dual-class share structure", _fmt(p.dual_class_shares)),
+        ("Activist holder on the register", _fmt(p.activist_holder_present)),
+        ("Index membership", ", ".join(p.index_memberships)),
+        ("Disclosure threshold", _fmt(p.disclosure_threshold_pct, "%")),
+        ("Approval threshold", _fmt(p.shareholder_approval_threshold_pct, "%")),
+        ("Analyst coverage", _fmt(p.analyst_coverage_count, " brokers")),
+    )
+    rows = [[label, value] for label, value in fields if value]
+    if not rows:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["Register / governance fact", "Position"], rows=rows,
+        citations=[_intake_citation("Category A: ownership and governance")],
+        note="Blank lines are unknowns, not zeroes. A dual-class structure or a "
+             "concentrated insider holding can decide the outcome regardless of the "
+             "stake acquired.",
+    )
+
+
+def mnpi_status(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """What the compliance position permits, stated in the deck rather than assumed."""
+    if not ctx.shape.public_target:
+        return _gap(spec)
+    a = ctx.access
+    if a is None:
+        return _gap(spec)
+    rows = [
+        ["Data room expected to carry MNPI", _fmt(a.mnpi_expected)],
+        ["Trading restriction acknowledged", _fmt(a.trading_restriction_acknowledged)],
+        ["Issuer / insider contact permitted", _fmt(a.issuer_contact_permitted)],
+    ]
+    if a.wall_crossed_parties:
+        rows.append(["Wall-crossed parties", ", ".join(a.wall_crossed_parties)])
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["Compliance position", "Status"], rows=rows,
+        citations=[_intake_citation("Category F: access and MNPI constraints")],
+        note="Restrictions in force until announcement. Where issuer contact is not "
+             "permitted, questions that would need it are carried to confirmatory "
+             "diligence rather than answered from inference.",
+    )
+
+
+def consensus_vs_plan(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """What the market already expects, set against what management is showing us.
+
+    The point of the exhibit is the gap. If the plan in the data room is the plan the
+    street has already published, the buyer is paying a premium for growth that is
+    priced, and that conclusion is worth stating plainly.
+    """
+    consensus = [
+        (i, s) for i, s in ctx.statements(
+            "consensus", "analyst", "sell-side", "street", "estimate",
+            figure=FIGURE, limit=4)
+    ]
+    guidance = [
+        (i, s) for i, s in ctx.statements(
+            "guidance", "outlook", "management plan", "budget", "forecast",
+            figure=FIGURE, limit=4)
+    ]
+    if not consensus and not guidance:
+        return _gap(spec)
+    rows = [["Published consensus", s, _cite(i)] for i, s in consensus]
+    rows += [["Management plan", s, _cite(i)] for i, s in guidance]
+    citations = _citations_of(consensus + guidance)
+    if not citations:
+        return _gap(spec)
+    note = ("Consensus is not corroboration of the plan - analysts are guided by the "
+            "company, so agreement between the two is one source counted twice.")
+    if consensus and not guidance:
+        note += " No management plan located, so the comparison is one-sided."
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["View", "As stated", "Source"], rows=rows,
+        citations=citations, note=note,
+    )
+
+
+def guidance_delivery(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """Management credibility measured on their own public record.
+
+    The cheapest test available on a listed target, and one a private company cannot
+    be given: they have told the market what they would do, repeatedly, and the
+    results were published.
+    """
+    pairs = ctx.statements("guidance", "guided", "outlook", "raised", "lowered",
+                           "beat", "missed", "reiterated", figure=FIGURE, limit=6)
+    attested = [(i, s) for i, s in pairs
+                if any(c.source_kind.is_attested or c.source_kind.is_public_record
+                       for c in i.citations)]
+    use = attested or pairs
+    if not use:
+        return _gap(spec)
+    citations = _citations_of(use)
+    if not citations:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["Statement to the market", "Source kind", "Source"],
+        rows=[[s, i.citations[0].source_kind.value.replace("_", " ") if i.citations else "-",
+               _cite(i)] for i, s in use],
+        citations=citations,
+        note="A guidance-against-delivery track record needs the guided figure and "
+             "the reported outcome side by side for each period; these are the "
+             "statements located so far." if not attested else
+             "Drawn from the public record, which is attested and independently "
+             "readable - the strongest evidence available before the data room opens.",
+    )
+
+
+def influence_rights(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """For a minority stake: whether the buyer can affect the plan it is funding."""
+    pairs = ctx.statements("board seat", "governance", "consent", "standstill",
+                           "shareholder agreement", "information rights", "observer",
+                           "veto", limit=5)
+    if not pairs:
+        return _gap(spec)
+    citations = _citations_of(pairs)
+    if not citations:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=["Right under negotiation", "Sourcing", "Source"],
+        rows=[[s, _sourcing(i), _cite(i)] for i, s in pairs],
+        citations=citations,
+        note="Without secured rights the plan is a forecast of what incumbent "
+             "management will choose to do, and should be underwritten as such.",
+    )
+
+
+def completion_conditions(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """Everything between an agreed price and actually owning the company."""
+    return _risk_table(ctx, spec, (RiskCategory.DEAL_COMPLETION,))
+
+
 _BUILDERS: dict[str, Callable[[ExhibitContext, ExhibitSpec], Exhibit]] = {
     "market_sizing": market_sizing, "market_growth": market_growth, "pestel": pestel,
     "landscape": landscape, "feature_bench": feature_bench, "market_share": market_share,
@@ -574,6 +834,11 @@ _BUILDERS: dict[str, Callable[[ExhibitContext, ExhibitSpec], Exhibit]] = {
     "forecast_vs_base": forecast_vs_base, "growth_levers": growth_levers,
     "pricing_elasticity": pricing_elasticity, "margin_erosion": margin_erosion,
     "substitution": substitution, "regulatory_heatmap": regulatory_heatmap,
+    "market_context": market_context, "ownership_control": ownership_control,
+    "mnpi_status": mnpi_status, "consensus_vs_plan": consensus_vs_plan,
+    "guidance_delivery": guidance_delivery,
+    "influence_rights": influence_rights,
+    "completion_conditions": completion_conditions,
 }
 
 
@@ -640,7 +905,7 @@ def build_all_for_section(
     """
     precomputed = precomputed or {}
     out: list[Exhibit] = []
-    for spec in specs_for_section(section):
+    for spec in specs_for_section(section, ctx.shape):
         if spec.key in precomputed:
             out.append(precomputed[spec.key])
             continue

@@ -28,6 +28,11 @@ class RiskCategory(str, Enum):
     REGULATORY = "Regulatory / compliance"
     DATA_ROOM_INTEGRITY = "Data-room integrity"
     INTEGRATION_SYNERGY = "Integration / synergy (strategic buyers)"
+    # Listed targets only. Screened conditionally so a private deal is never
+    # marked down on coverage for categories that cannot apply to it.
+    MARKET_EXPECTATIONS = "Public-market expectations (listed targets)"
+    GOVERNANCE_CONTROL = "Governance & control rights (listed targets)"
+    DEAL_COMPLETION = "Deal completion & approvals (listed targets)"
 
 
 class RiskStatus(str, Enum):

@@ -1,0 +1,62 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - Meridian Data Systems is a fictional company.
+This file imitates the structure of an annual report for testing only. It is not a
+filing, and no figure in it describes any real issuer.
+
+MERIDIAN DATA SYSTEMS, INC.
+Annual Report on Form 10-K for the fiscal year ended 31 January 2026
+NASDAQ: MRDN
+
+Item 1. Business
+
+Meridian Data Systems provides cloud data-integration and governance software to
+large enterprises. Our platform moves, transforms and governs data across the
+systems our customers already run. We sell principally through a direct enterprise
+sales force, supported by a partner channel that originated 24% of new bookings in
+fiscal 2026.
+
+We report two segments. Integration Cloud generated revenue of $392.0 million in
+fiscal 2026, an increase of 21% over the prior year. Data Governance generated
+revenue of $95.2 million, an increase of 11%. Total revenue was $487.2 million,
+compared with $409.4 million in fiscal 2025, an increase of 19%.
+
+Revenue by geography was United States $321.6 million, Europe $118.4 million, and
+rest of world $47.2 million.
+
+No single customer accounted for more than 10% of total revenue in fiscal 2026. Our
+ten largest customers represented 21% of total revenue.
+
+Item 1A. Risk Factors
+
+Competition. The data-integration market is intensely competitive. The largest cloud
+platform vendors have expanded their native integration capabilities and increasingly
+bundle them with their broader platform agreements. We expect this bundling to
+continue and it may compress our pricing.
+
+Retention. Our dollar-based net revenue retention rate was 112% in fiscal 2026,
+compared with 118% in fiscal 2025 and 121% in fiscal 2024. The decline reflects lower
+seat expansion within existing accounts. Gross revenue retention was 91%.
+
+Concentration of engineering talent. A significant portion of our platform is
+maintained by a small group of engineers, and we have historically experienced
+voluntary turnover of approximately 14% annually.
+
+Item 7. Management Discussion and Analysis
+
+Gross margin was 78.1% in fiscal 2026 compared with 79.4% in fiscal 2025. The decline
+reflects a higher mix of hosted infrastructure cost as customers migrated to our
+managed offering.
+
+Research and development expense was $121.8 million, or 25.0% of revenue. Sales and
+marketing expense was $196.4 million, or 40.3% of revenue.
+
+Loss from operations was $18.2 million. On a non-GAAP basis, excluding stock-based
+compensation of $84.6 million and restructuring charges of $11.3 million, income from
+operations was $77.7 million, representing a non-GAAP operating margin of 15.9%.
+
+Remaining performance obligations were $612.0 million as of 31 January 2026, of which
+we expect to recognise approximately 61% within twelve months.
+
+Item 8. Financial Statements
+
+Total costs of being a public company, including audit, listing, investor relations
+and directors and officers insurance, were $14.7 million in fiscal 2026.

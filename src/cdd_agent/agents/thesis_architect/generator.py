@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from cdd_agent.config import get_settings
 from cdd_agent.schemas.common import Tier
-from cdd_agent.schemas.deal_profile import DealProfile
+from cdd_agent.schemas.deal_profile import DealProfile, TransactionStructure
 from cdd_agent.schemas.hypothesis import Hypothesis, HypothesisTree
 
 
@@ -50,6 +50,49 @@ FRAMINGS: tuple[Framing, ...] = (
     ),
 )
 
+# What each structure makes the decomposition responsible for. Kept here rather than
+# in the prompt template because the same company under two structures is genuinely
+# two different diligence questions, and the difference should be legible in code.
+_PUBLIC_PREAMBLE = """
+The target is listed. Its filings are public and its price already reflects a plan
+that thousands of people have read. A hypothesis that restates published guidance or
+consensus is not diligence - it is a summary. Every Tier-1 hypothesis must be
+falsifiable against something the market has not already settled, and where the
+thesis agrees with consensus, say so explicitly rather than presenting agreement as
+a finding."""
+
+_STRUCTURE_INSTRUCTIONS: dict[str, str] = {
+    TransactionStructure.PUBLIC_MINORITY_STAKE.value: """
+The buyer will hold a significant minority and cannot compel any decision. The plan
+being underwritten is the incumbent management team's, and they cannot be replaced.
+Decompose accordingly: hypotheses about what the buyer would do differently are
+untestable here. Test whether the existing plan works, whether the buyer obtains
+influence that is real rather than nominal, and whether value can be realised without
+control - including whether a stake this size can be exited at all.""",
+    TransactionStructure.PUBLIC_CONTROL_STAKE.value: """
+The buyer takes control but the company remains listed, so minority shareholders
+continue alongside. Value capture that requires related-party dealing, transfer
+pricing, or the disclosure freedom of a private company is not available, and the
+costs of remaining listed stay in the base case. Test the value-creation plan against
+what a controlling shareholder of a listed company may actually do.""",
+    TransactionStructure.TAKE_PRIVATE.value: """
+The buyer must win a shareholder vote at a premium to the unaffected price. Two
+consequences for the decomposition: the base case has to clear that premium, not
+merely show a good business; and completion is a commercial question, not only a
+legal one - customer and partner change-of-control consents that can be withheld are
+revenue at risk on close. Delisting removes the public-company cost base, which is a
+real and sizeable lever that must be evidenced rather than assumed.""",
+}
+
+
+def structure_brief(profile: DealProfile) -> str:
+    """The structure-specific instruction block, empty for a private target."""
+    if not profile.is_public_target:
+        return ""
+    structure = profile.target.transaction_structure
+    return _PUBLIC_PREAMBLE + _STRUCTURE_INSTRUCTIONS.get(structure.value, "")
+
+
 _SYSTEM = """You are decomposing an investment thesis into a testable hypothesis tree
 for a commercial due diligence engagement.
 
@@ -74,11 +117,13 @@ Stay inside the commercial workstream. Financial, legal, tax, and technical dili
 are separate workstreams whose findings this engagement references but does not replicate."""
 
 _HUMAN = """Target: {target}
+Transaction structure: {structure}
 Sub-sector: {sub_sector} ({business_model})
 Investment thesis: {thesis}
 Critical model assumptions: {assumptions}
 Buyer: {buyer_type}; decision criteria: {criteria}
 Base case: {growth} growth, {margin} margin expansion, {hold} year hold
+{structure_brief}
 {corrections}
 Produce the {label} decomposition."""
 
@@ -124,6 +169,8 @@ class ThoughtGenerator:
                     "tier1_max": self.settings.tier1_max,
                     "label": framing.label,
                     "target": self.profile.target.legal_name,
+                    "structure": self.profile.target.transaction_structure.value,
+                    "structure_brief": structure_brief(self.profile),
                     "sub_sector": self.profile.sector.sub_sector,
                     "business_model": self.profile.sector.business_model.value,
                     "thesis": self.profile.thesis.one_sentence_thesis,

@@ -239,7 +239,7 @@ def audit(engagement: str) -> None:
     if report.routed_back:
         console.print(f"[yellow]Routed back to the Analyst: "
                       f"{', '.join(sorted(set(report.routed_back)))}[/yellow]")
-    applicable = applicable_categories(ctx.is_strategic_buyer)
+    applicable = applicable_categories(ctx.deal_shape)
     console.print(f"Taxonomy coverage: {register.coverage(applicable):.0%}")
 
 
@@ -297,7 +297,7 @@ def run(
             tree=report.tree,
             store=ctx.store,
             engagement_id=engagement,
-            strategic_buyer=ctx.is_strategic_buyer,
+            strategic_buyer=ctx.deal_shape,
             timings=[(t.phase, t.seconds) for t in report.timings],
         )
         console.print(Panel(metrics.render(), title="Evaluation metrics"))
@@ -413,7 +413,7 @@ def demo(
     console.print(f"  {audit_report.summary()}")
     console.print(
         "  taxonomy coverage: "
-        f"{register.coverage(applicable_categories(ctx.is_strategic_buyer)):.0%}"
+        f"{register.coverage(applicable_categories(ctx.deal_shape)):.0%}"
     )
 
     console.print("\n[bold]Phase 4[/bold] - synthesis")
@@ -426,7 +426,7 @@ def demo(
 
     metrics = evaluate(
         deck=deck, matrix=matrix, register=register, tree=tree, store=store,
-        engagement_id=engagement, strategic_buyer=ctx.is_strategic_buyer,
+        engagement_id=engagement, strategic_buyer=ctx.deal_shape,
     )
     console.print(Panel(metrics.render(), title="Evaluation metrics"))
     console.print(

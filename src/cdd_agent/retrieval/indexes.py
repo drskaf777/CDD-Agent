@@ -48,8 +48,17 @@ class RetrievedChunk:
 
     def to_citation(self, source_kind: SourceKind) -> Citation:
         tier_raw = self.metadata.get("doc_tier")
+        # The index says where the chunk was stored; the document says what it is. A
+        # 10-K filed in the data room is still a public filing, and citing it as
+        # confidential management material would misstate both its weight and the
+        # MNPI position.
+        stored = str(self.metadata.get("source_kind") or "")
+        try:
+            resolved = SourceKind(stored) if stored else source_kind
+        except ValueError:
+            resolved = source_kind
         return Citation(
-            source_kind=source_kind,
+            source_kind=resolved,
             source_file=self.source_file,
             locator=self.locator,
             chunk_id=self.chunk_id,

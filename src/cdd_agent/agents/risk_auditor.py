@@ -80,7 +80,7 @@ class RiskAuditor(Agent):
     ) -> tuple[RiskRegister, AuditReport]:
         register = register or self.context.memory.risk_register()
         report = AuditReport()
-        strategic = self.context.is_strategic_buyer
+        strategic = self.context.deal_shape
 
         self._check_source_conflicts(matrix, register, report)
         self._check_staleness(matrix, report)

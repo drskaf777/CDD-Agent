@@ -1,0 +1,25 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - fictional research note, fictional company.
+
+WEXFORD SECURITIES - EQUITY RESEARCH
+Meridian Data Systems (MRDN) - Neutral, price target $46
+4 May 2026
+
+Estimates. We model fiscal 2027 revenue of $566 million, growth of 16%, in line with
+company guidance of $560 million to $572 million. Consensus across the nine brokers
+covering the stock sits at $567 million with a range of $558 million to $581 million,
+a notably tight dispersion.
+
+We forecast fiscal 2028 revenue of $648 million, growth of 14%, and non-GAAP operating
+margin of 18%.
+
+Thesis. Meridian remains the depth leader in enterprise data integration. Our concern
+is that the growth algorithm is shifting from expansion to new logos at precisely the
+point when the platform vendors are bundling. Net revenue retention of 112% is still
+healthy in absolute terms but the three-year trend is the wrong shape.
+
+Valuation. At $41.20 the shares trade on 4.5x our fiscal 2027 revenue estimate, a
+discount to the peer median of 5.4x that we regard as warranted given decelerating
+retention.
+
+Risks to our view. Faster attach of the governance product; a strategic acquirer
+paying for the installed base rather than the growth algorithm.

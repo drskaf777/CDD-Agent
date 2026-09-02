@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Optional
 
 from cdd_agent.config import get_settings
-from cdd_agent.schemas.common import Tier
+from cdd_agent.schemas.common import SourceKind, Tier
 
 # Boundary patterns, most specific first.
 _CLAUSE = re.compile(
@@ -49,6 +49,42 @@ class Chunk:
     metadata: dict[str, object] = field(default_factory=dict)
 
 
+# Public-record documents can sit in the same folder as confidential material - a
+# banker's data room routinely includes the last 10-K alongside the board pack. They
+# are not the same kind of evidence: a filing is attested and creates no MNPI to
+# read, while the board pack is neither. Classifying by filename keeps that
+# distinction without asking the user to sort the folder.
+_FILING_MARKERS = (
+    "10-k", "10k", "10-q", "10q", "8-k", "8k", "20-f", "20f", "6-k",
+    "def-14a", "def14a", "defa14a", "proxy", "annual-report", "annual_report",
+    "annualreport", "interim-report", "earnings-call", "earnings_call",
+    "earnings-transcript", "investor-day", "investor_day", "shareholder-letter",
+    "prospectus", "s-1",
+)
+_RESEARCH_MARKERS = (
+    "analyst", "broker", "research-note", "research_note", "sell-side",
+    "sellside", "consensus", "equity-research", "initiation",
+)
+
+
+def classify_source_kind(source_file: str,
+                         default: SourceKind = SourceKind.DATA_ROOM) -> SourceKind:
+    """Read the document's provenance off its filename.
+
+    Deliberately conservative: an unrecognised file stays whatever the index says it
+    is. Mislabelling a confidential board pack as a public filing would understate
+    both the MNPI exposure and the management-bias flag, so ambiguity resolves
+    towards the more restrictive classification.
+    """
+    name = source_file.lower().replace(" ", "-").replace("_", "-")
+    stem = name.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+    if any(m in stem for m in _RESEARCH_MARKERS):
+        return SourceKind.SELL_SIDE_RESEARCH
+    if any(m in stem for m in _FILING_MARKERS):
+        return SourceKind.PUBLIC_FILING
+    return default
+
+
 @dataclass
 class SourceDocument:
     """One unstructured data-room or knowledge-base file, already text-extracted."""
@@ -58,12 +94,17 @@ class SourceDocument:
     doc_tier: Tier = Tier.DEPTH_BUILDING
     document_date: Optional[str] = None  # ISO date; drives supersession filtering
     doc_type: str = "document"           # contract | deck | transcript | document
+    # Resolved from the filename in __post_init__ unless the caller states it. A
+    # public filing sitting in the data room is public record wherever it is filed.
+    source_kind: SourceKind = SourceKind.DATA_ROOM
     hypothesis_branch: Optional[str] = None
     version_group: Optional[str] = None  # derived in __post_init__ when not supplied
 
     def __post_init__(self) -> None:
         if self.version_group is None:
             self.version_group = _version_group(self.source_file)
+        if self.source_kind is SourceKind.DATA_ROOM:
+            self.source_kind = classify_source_kind(self.source_file)
 
 
 def _file_slug(source_file: str) -> str:
@@ -161,6 +202,8 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
                     "version_group": doc.version_group or "",
                     "hypothesis_branch": doc.hypothesis_branch or "",
                     "boundary_kind": kind,
+                   "source_kind": doc.source_kind.value,
+                    "source_kind": doc.source_kind.value,
                 },
             )
         )
@@ -192,6 +235,7 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
                         "version_group": doc.version_group or "",
                         "hypothesis_branch": doc.hypothesis_branch or "",
                         "boundary_kind": kind,
+                        "source_kind": doc.source_kind.value,
                         "oversized_unit": True,
                     },
                 )
@@ -227,6 +271,7 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
                         "version_group": doc.version_group or "",
                         "hypothesis_branch": doc.hypothesis_branch or "",
                         "boundary_kind": kind,
+                        "source_kind": doc.source_kind.value,
                     },
                 )
             )

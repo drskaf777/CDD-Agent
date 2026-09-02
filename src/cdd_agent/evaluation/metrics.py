@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
+from cdd_agent.schemas.deal_profile import DealShape
 from cdd_agent.schemas.common import ConfidenceTag
 from cdd_agent.schemas.deck import Deck
 from cdd_agent.schemas.evidence import EvidenceMatrix
@@ -123,9 +124,14 @@ def current_version_citations(deck: Deck, matrix: EvidenceMatrix) -> Metric:
     )
 
 
-def risk_register_coverage(register: RiskRegister, strategic_buyer: bool) -> Metric:
-    """Share of the standing taxonomy actually evaluated - not just what surfaced."""
-    applicable = applicable_categories(strategic_buyer)
+def risk_register_coverage(register: RiskRegister,
+                           deal: "DealShape | bool") -> Metric:
+    """Share of the standing taxonomy actually evaluated - not just what surfaced.
+
+    Measured against the categories in scope for this deal, so a private deal is
+    not marked down for the listed-target categories and a listed one is.
+    """
+    applicable = applicable_categories(deal)
     evaluated = register.categories_evaluated()
     covered = [c for c in applicable if c in evaluated]
     missing = [c.value for c in applicable if c not in evaluated]
@@ -222,7 +228,7 @@ def evaluate(
     tree: Optional[HypothesisTree],
     store: StateStore,
     engagement_id: str,
-    strategic_buyer: bool,
+    strategic_buyer: "DealShape | bool",
     timings: Optional[list[tuple[str, float]]] = None,
 ) -> MetricSet:
     """Compute the full metric set for one run and persist it."""

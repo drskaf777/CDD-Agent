@@ -105,6 +105,31 @@ class ToolAuthorization:
             and profile.target.deal_stage
             in (DealStage.EARLY_SCREENING, DealStage.SIGNED_LOI)
         )
+        self.public_target = bool(profile and profile.is_public_target)
+
+    # ------------------------------------------------------------- MNPI gate
+    @property
+    def mnpi_block(self) -> Optional[str]:
+        """Why work that touches non-public material is barred, if it is.
+
+        Diligence on a listed company hands the buyer material non-public
+        information, and from that moment everyone who has seen it is restricted
+        from trading the security. The restriction is not the agent's to accept on
+        the firm's behalf, so until compliance has recorded it the tools that would
+        create the exposure do not run. This is the same class of rule as the
+        NDA/access constraints - a hard block, not a warning.
+        """
+        if not self.public_target or not self.access.mnpi_expected:
+            return None
+        if self.access.trading_restriction_acknowledged:
+            return None
+        return (
+            "This is a listed target and intake Category F expects the data room to "
+            "carry material non-public information, but compliance has not recorded "
+            "the trading restriction. Reading it would put the firm in possession of "
+            "MNPI without a wall-crossing on file. Obtain the acknowledgement, then "
+            "re-run."
+        )
 
     # ------------------------------------------------------------------ checks
     def check(
@@ -122,6 +147,11 @@ class ToolAuthorization:
                 f"{role.value} is not authorized to call {tool.value}. "
                 f"Role scope: {sorted(t.value for t in scope)}.",
             )
+
+        if tool in (ToolName.DOCUMENT_RETRIEVAL, ToolName.STRUCTURED_COMPUTATION):
+            blocked = self.mnpi_block
+            if blocked:
+                return Decision(False, blocked)
 
         if tool is ToolName.DOCUMENT_RETRIEVAL:
             if self.access.vdr_access.value == "none":
@@ -152,6 +182,24 @@ class ToolAuthorization:
                 "reveal the transaction is a hard block; carry the question forward "
                 "as a confirmatory-diligence item instead.",
             )
+        if kind.startswith(("issuer", "insider", "management", "investor relations",
+                            "ir", "officer", "director")):
+            # Reg FD: an unscripted call with an officer of a listed company is how
+            # selective disclosure happens, and the exposure lands on the issuer,
+            # which is also the asset being bought. Default deny, and note that the
+            # public record is the sanctioned channel.
+            if not self.public_target:
+                return Decision(True)
+            if not self.access.issuer_contact_permitted:
+                return Decision(
+                    False,
+                    "Contact with insiders of a listed issuer is not authorized. "
+                    "Selective disclosure would expose the issuer under Reg FD and "
+                    "taint the process. Use the public record - filings, earnings "
+                    "calls, investor days - or route the question through the "
+                    "company's advisers as a data request.",
+                )
+            return Decision(True)
         if kind.startswith("customer"):
             if not self.access.customer_contact_permitted:
                 return Decision(False, "Intake Category F prohibits customer contact.")

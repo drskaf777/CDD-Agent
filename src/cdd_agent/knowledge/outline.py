@@ -11,6 +11,7 @@ generated from the Risk Register rather than written.
 from __future__ import annotations
 
 from cdd_agent.schemas.common import OutlineSection
+from cdd_agent.schemas.deal_profile import DealShape, TransactionStructure
 
 UNIVERSAL_OUTLINE: tuple[OutlineSection, ...] = (
     OutlineSection(
@@ -175,6 +176,99 @@ HEALTHCARE_MODULE: dict[int, tuple[str, ...]] = {
     ),
 }
 
+# --- Listed targets: merged on top of the sub-sector module --------------------
+# A public company has already been analysed by everyone who reads its filings and
+# is repriced daily on the result. Restating that analysis is not diligence, so the
+# public module points every section at the differential: what the buyer believes
+# that the price does not already reflect.
+
+PUBLIC_COMPANY_MODULE: dict[int, tuple[str, ...]] = {
+    1: (
+        "The differentiated view: what this work concludes that published consensus "
+        "does not, stated explicitly",
+    ),
+    2: (
+        "Market sizing reconciled to the reported segment disclosure, not built beside it",
+    ),
+    4: (
+        "Customer and channel contact constrained pre-announcement: what could be "
+        "asked, and what was deferred to confirmatory diligence",
+    ),
+    6: (
+        "Reported vs. adjusted earnings bridge, with each adjustment named and sourced "
+        "to the filing",
+        "Guidance history against delivery: the plan's credibility measured on the "
+        "company's own public record",
+    ),
+    7: (
+        "Unaffected share price, reference date, and the 52-week range",
+        "Consensus estimates vs. management plan vs. this base case, on one axis",
+    ),
+    8: (
+        "MNPI and wall-crossing status; what the restriction prevents until announcement",
+    ),
+}
+
+MINORITY_STAKE_MODULE: dict[int, tuple[str, ...]] = {
+    5: (
+        "Incumbent management is the execution vehicle: the plan being underwritten is "
+        "theirs to run, and cannot be replaced",
+    ),
+    7: (
+        "Value if the plan is never adopted: what the stake is worth on the "
+        "status-quo trajectory",
+        "Exit path for a block this size measured against average daily volume",
+    ),
+    8: (
+        "Influence rights actually secured: board seat, observer, consent rights, or none",
+        "Ongoing information rights after close - without them the plan cannot be "
+        "monitored, and any that are granted re-restrict trading",
+        "Disclosure threshold and standstill: the stake at which the holding becomes "
+        "public and the build-up must stop",
+    ),
+}
+
+CONTROL_STAKE_MODULE: dict[int, tuple[str, ...]] = {
+    5: (
+        "Board composition after close and the controlled-company governance regime",
+    ),
+    6: (
+        "Cost of remaining listed, retained in the base case rather than assumed away",
+    ),
+    7: (
+        "Value capture available to a controlling holder without prejudicing minority "
+        "shareholders: related-party limits on the synergy case",
+    ),
+    8: (
+        "Free-float and index-eligibility consequences of the stake acquired",
+        "Continuing minority shareholders as a constraint on capital allocation",
+    ),
+}
+
+TAKE_PRIVATE_MODULE: dict[int, tuple[str, ...]] = {
+    6: (
+        "Public-company cost base removed on delisting, sized and sourced rather than "
+        "asserted as a round number",
+    ),
+    7: (
+        "Premium to the unaffected price that the base case must clear, and the "
+        "premium a board could recommend",
+        "Financing package and the leverage the cash flows actually support",
+    ),
+    8: (
+        "Completion conditions: shareholder vote, regulatory and foreign-investment "
+        "clearance, financing certainty",
+        "Interloper and activist risk: go-shop, fiduciary out, and topping-bid exposure",
+    ),
+}
+
+STRUCTURE_MODULES: dict[str, dict[int, tuple[str, ...]]] = {
+    TransactionStructure.PUBLIC_MINORITY_STAKE.value: MINORITY_STAKE_MODULE,
+    TransactionStructure.PUBLIC_CONTROL_STAKE.value: CONTROL_STAKE_MODULE,
+    TransactionStructure.TAKE_PRIVATE.value: TAKE_PRIVATE_MODULE,
+}
+
+
 PREBUILT_MODULES: dict[str, dict[int, tuple[str, ...]]] = {
     "saas": SAAS_MODULE,
     "healthcare": HEALTHCARE_MODULE,
@@ -199,13 +293,28 @@ def module_for_sub_sector(sub_sector: str, business_model: str = "") -> str | No
     return None
 
 
-def tailored_outline(sub_sector: str, business_model: str = "") -> list[OutlineSection]:
-    """The universal spine with the matching module's elements merged in."""
+def tailored_outline(sub_sector: str, business_model: str = "",
+                     shape: "DealShape | None" = None) -> list[OutlineSection]:
+    """The universal spine, with the sub-sector and deal-structure modules merged in.
+
+    Order matters: sub-sector first, then the public-company module, then the module
+    for the specific structure. A take-private and a minority stake in the same
+    company ask different questions of it, and the last module in is the one closest
+    to the decision being taken.
+    """
     module_name = module_for_sub_sector(sub_sector, business_model)
-    module = PREBUILT_MODULES.get(module_name or "", {})
+    layers: list[dict[int, tuple[str, ...]]] = [
+        PREBUILT_MODULES.get(module_name or "", {})
+    ]
+    if shape is not None and shape.public_target:
+        layers.append(PUBLIC_COMPANY_MODULE)
+        layers.append(STRUCTURE_MODULES.get(shape.structure.value, {}))
+
     out: list[OutlineSection] = []
     for section in UNIVERSAL_OUTLINE:
-        extra = module.get(section.number, ())
+        extra: tuple[str, ...] = ()
+        for layer in layers:
+            extra += layer.get(section.number, ())
         out.append(
             section.model_copy(update={"key_elements": section.key_elements + extra})
             if extra

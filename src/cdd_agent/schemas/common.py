@@ -49,14 +49,56 @@ class SourceKind(str, Enum):
     COMPUTATION = "computation"            # derived by the computation tool
     PRIMARY_RESEARCH = "primary_research"  # independently sourced interviews
     KNOWLEDGE_BASE = "knowledge_base"      # cross-engagement / external market data
+    # --- Listed targets ---
+    PUBLIC_FILING = "public_filing"        # 10-K/20-F, 10-Q, 8-K, proxy, transcript
+    SELL_SIDE_RESEARCH = "sell_side_research"  # broker notes, published consensus
+    INTAKE = "intake"                      # stated by the buyer in the Deal Profile
 
     @property
     def is_management_supplied(self) -> bool:
-        return self in (SourceKind.DATA_ROOM, SourceKind.STRUCTURED_DATA)
+        # A filing is still the issuer's own account of itself. Audit and officer
+        # certification raise its evidential weight - see is_attested - but they do
+        # not make it independent of the party whose plan is being tested.
+        return self in (SourceKind.DATA_ROOM, SourceKind.STRUCTURED_DATA,
+                        SourceKind.PUBLIC_FILING)
 
     @property
     def is_independent(self) -> bool:
+        """Sources that can triangulate a management claim.
+
+        Sell-side research is deliberately excluded. Analysts build their models from
+        company guidance and management access, so consensus agreeing with the plan
+        is mostly an echo of it. Treating it as corroboration would manufacture
+        triangulation out of the same source twice - the exact failure the four-way
+        confidence schema exists to prevent.
+        """
         return self in (SourceKind.PRIMARY_RESEARCH, SourceKind.KNOWLEDGE_BASE)
+
+    @property
+    def is_buyer_asserted(self) -> bool:
+        """Stated by the client at intake and not yet verified against anything.
+
+        Traceable - the Deal Profile Brief is a stored artifact with an author and a
+        timestamp - but corroborated by nobody, so it counts neither as management
+        data nor as independent triangulation.
+        """
+        return self is SourceKind.INTAKE
+
+    @property
+    def is_attested(self) -> bool:
+        """Filed under audit and officer certification, with legal liability attached.
+
+        Weaker than independent, stronger than a board deck: the classic misses -
+        segment mix, non-GAAP adjustments - live inside filings, but nobody signs a
+        10-K casually.
+        """
+        return self is SourceKind.PUBLIC_FILING
+
+    @property
+    def is_public_record(self) -> bool:
+        """Available without the data room, so it creates no MNPI to read."""
+        return self in (SourceKind.PUBLIC_FILING, SourceKind.SELL_SIDE_RESEARCH,
+                        SourceKind.KNOWLEDGE_BASE)
 
 
 class Citation(BaseModel):

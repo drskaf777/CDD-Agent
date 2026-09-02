@@ -25,6 +25,8 @@ from typing import Optional
 from cdd_agent.agents.base import Agent, AgentContext
 from cdd_agent.guardrails.authorization import AgentRole, AuthorizationError
 from cdd_agent.knowledge.data_request_catalog import (
+    catalog_for,
+    public_record_note,
     ADDONS_BY_MODULE,
     UNIVERSAL_CATALOG,
     CatalogItem,
@@ -32,6 +34,7 @@ from cdd_agent.knowledge.data_request_catalog import (
 from cdd_agent.knowledge.outline import module_for_sub_sector
 from cdd_agent.schemas.common import ConfidenceTag, SourceKind, Tier
 from cdd_agent.schemas.data_request import DataRequestChecklist, DataRequestItem
+from cdd_agent.schemas.deal_profile import PublicMarketContext
 from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
 from cdd_agent.schemas.hypothesis import Hypothesis, HypothesisTree
 from cdd_agent.schemas.risk import GapOwner, InformationGap
@@ -104,7 +107,10 @@ class Analyst(Agent):
         catalog: list[CatalogItem] = list(UNIVERSAL_CATALOG)
         if module:
             catalog += list(ADDONS_BY_MODULE.get(module, ()))
+        # Listed targets add the public record and the structure-specific asks.
+        catalog += list(catalog_for(self.context.deal_shape))
 
+        public = self.context.deal_shape.public_target
         items: list[DataRequestItem] = []
         for n, entry in enumerate(catalog, start=1):
             linked = _link_to_hypotheses(entry, tree)
@@ -114,6 +120,17 @@ class Analyst(Agent):
             tier = entry.tier
             if tier is Tier.DEAL_CRITICAL and not linked:
                 tier = Tier.DEPTH_BUILDING
+            rationale = entry.rationale or (
+                f"Supports {', '.join(linked)}" if linked else "Standard coverage"
+            )
+            # On a listed target, anything the filings already answer is retrieved
+            # rather than requested. Sending management a list of things they
+            # published last quarter burns the scarcest resource in a live process
+            # and says plainly that nobody read them.
+            where = public_record_note(entry.item) if public else ""
+            if where:
+                tier = Tier.ENRICHMENT
+                rationale = f"Available from the public record: {where}. Retrieved, not requested."
             items.append(
                 DataRequestItem(
                     id=f"DR-{n:03d}",
@@ -121,8 +138,7 @@ class Analyst(Agent):
                     item=entry.item,
                     tier=tier,
                     hypothesis_ids=linked,
-                    rationale=entry.rationale
-                    or (f"Supports {', '.join(linked)}" if linked else "Standard coverage"),
+                    rationale=rationale,
                     sub_sector_specific=entry.sub_sector_specific,
                 )
             )
@@ -272,7 +288,10 @@ class Analyst(Agent):
             tree=tree, matrix=matrix,
             register=self.context.memory.risk_register(),
             computation=self.tools().computation,
-            strategic_buyer=self.context.is_strategic_buyer,
+            shape=self.context.deal_shape,
+            public=(self.context.profile.public_market
+                    if self.context.profile else PublicMarketContext()),
+            access=self.context.profile.access if self.context.profile else None,
         ))
         self.context.store.put(
             self.context.engagement_id, Collection.EXHIBIT, "computed",

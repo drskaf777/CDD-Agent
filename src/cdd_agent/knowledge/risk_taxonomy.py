@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from cdd_agent.schemas.deal_profile import DealShape
 from cdd_agent.schemas.risk import RiskCategory
 
 
@@ -90,27 +91,104 @@ TAXONOMY: dict[RiskCategory, tuple[Screen, ...]] = {
                ("culture", "systems integration", "erp", "migration plan"),
                strategic_only=True),
     ),
+    # --- Listed targets ------------------------------------------------------
+    # A public company is already being valued continuously by people who read the
+    # same filings. The commercial question is therefore not "is this a good
+    # business" but "what do we believe that the price does not" - so the screens
+    # test the differential, not the fundamentals a second time.
+    RiskCategory.MARKET_EXPECTATIONS: (
+        Screen("Base case does not clear the unaffected price plus the premium the "
+               "board could recommend",
+               ("premium", "unaffected", "share price", "offer price", "52-week",
+                "market capitalisation", "market capitalization")),
+        Screen("Thesis restates published consensus, so the buyer is paying for "
+               "growth the market has already priced",
+               ("consensus", "analyst", "sell-side", "sell side", "street",
+                "guidance", "estimate")),
+        Screen("Management guidance to the market diverges from the plan shown in "
+               "the data room",
+               ("guidance", "investor day", "earnings call", "outlook",
+                "management plan", "budget")),
+    ),
+    RiskCategory.GOVERNANCE_CONTROL: (
+        Screen("Value-creation plan requires decisions a minority holder cannot compel",
+               ("minority", "board seat", "governance", "control", "veto",
+                "standstill", "shareholder agreement", "consent")),
+        Screen("Continuing minority shareholders constrain related-party actions and "
+               "capital allocation",
+               ("related party", "minority shareholder", "free float", "squeeze-out",
+                "squeeze out", "tag-along", "drag-along", "fiduciary")),
+        Screen("No ongoing information rights after close, so the plan cannot be "
+               "monitored",
+               ("information rights", "reporting", "disclosure", "observer",
+                "quarterly reporting")),
+        Screen("Founder, dual-class, or insider holdings decide the outcome regardless "
+               "of the stake acquired",
+               ("dual-class", "dual class", "founder", "insider", "voting rights",
+                "super-voting")),
+    ),
+    RiskCategory.DEAL_COMPLETION: (
+        Screen("Shareholder vote or acceptance threshold not secured",
+               ("shareholder approval", "shareholder vote", "acceptance",
+                "irrevocable", "proxy", "scheme of arrangement")),
+        Screen("Regulatory or foreign-investment clearance conditions the timetable",
+               ("antitrust", "hsr", "cfius", "merger control", "clearance",
+                "regulatory approval", "national security")),
+        Screen("Interloper, activist, or arbitrage pressure on price and timetable",
+               ("activist", "competing bid", "interloper", "go-shop", "arbitrage",
+                "fiduciary out", "topping bid")),
+        Screen("Defences that make the approach unactionable without board support",
+               ("poison pill", "rights plan", "staggered board", "classified board",
+                "supermajority")),
+    ),
 }
 
 
-def screens_for(category: RiskCategory, strategic_buyer: bool) -> tuple[Screen, ...]:
+def category_applies(category: RiskCategory, shape: DealShape) -> bool:
+    """Whether this category is in scope for this deal at all.
+
+    Coverage is a headline metric, so an out-of-scope category must be excluded
+    rather than left permanently uncovered - otherwise every private deal reports a
+    hole it could never fill, and the metric stops meaning anything.
+    """
+    if category is RiskCategory.INTEGRATION_SYNERGY:
+        return shape.strategic_buyer
+    if category is RiskCategory.MARKET_EXPECTATIONS:
+        # A traded price to argue with is the whole point of the category.
+        return shape.public_target
+    if category is RiskCategory.GOVERNANCE_CONTROL:
+        # Minority holders on one side of the table or the other: either the buyer
+        # is one, or it must live with the ones who remain.
+        return shape.public_target and (
+            shape.retains_listing or not shape.confers_control
+        )
+    if category is RiskCategory.DEAL_COMPLETION:
+        # Only a control transaction has a completion condition to fail.
+        return shape.public_target and shape.confers_control
+    return True
+
+
+def screens_for(category: RiskCategory, deal: "DealShape | bool") -> tuple[Screen, ...]:
+    strategic = DealShape.coerce(deal).strategic_buyer
     return tuple(
-        s for s in TAXONOMY[category] if strategic_buyer or not s.strategic_only
+        s for s in TAXONOMY[category] if strategic or not s.strategic_only
     )
 
 
-def applicable_categories(strategic_buyer: bool) -> list[RiskCategory]:
-    """Integration/synergy is scoped to strategic buyers, so sponsor deals are not
-    penalised on coverage for a category that does not apply to them."""
-    return [
-        c for c in RiskCategory
-        if screens_for(c, strategic_buyer)
-    ]
+def applicable_categories(deal: "DealShape | bool") -> list[RiskCategory]:
+    """The taxonomy actually in scope for this deal.
+
+    Accepts the older `strategic_buyer` boolean so call sites without a profile in
+    hand keep working; they simply see a private financial-sponsor deal.
+    """
+    shape = DealShape.coerce(deal)
+    return [c for c in RiskCategory if category_applies(c, shape)]
 
 
-def matches(text: str, category: RiskCategory, strategic_buyer: bool) -> list[Screen]:
+def matches(text: str, category: RiskCategory,
+            deal: "DealShape | bool") -> list[Screen]:
     lowered = text.lower()
     return [
-        s for s in screens_for(category, strategic_buyer)
+        s for s in screens_for(category, deal)
         if any(m in lowered for m in s.markers)
     ]

@@ -164,7 +164,7 @@ def snapshot(engagement: str) -> dict[str, Any]:
         escalations += [e.to_dict() for e in check_tier1_evidence(tree, matrix, register)]
     stored = [doc for _, doc in _store.list(engagement, Collection.ESCALATION)]
 
-    applicable = applicable_categories(ctx.is_strategic_buyer)
+    applicable = applicable_categories(ctx.deal_shape)
     return {
         "engagement_id": engagement,
         "phases": _phase_states(
@@ -313,7 +313,7 @@ def run_audit(engagement: str) -> dict[str, Any]:
         "gaps": len(report.gaps_raised),
         "conflicts": report.conflicts,
         "routed_back": sorted(set(report.routed_back)),
-        "coverage": register.coverage(applicable_categories(ctx.is_strategic_buyer)),
+        "coverage": register.coverage(applicable_categories(ctx.deal_shape)),
     }
 
 
@@ -334,7 +334,7 @@ def run_synthesize(engagement: str) -> dict[str, Any]:
     metrics = evaluate(
         deck=deck, matrix=ctx.memory.evidence_matrix(),
         register=ctx.memory.risk_register(), tree=tree, store=_store,
-        engagement_id=engagement, strategic_buyer=ctx.is_strategic_buyer,
+        engagement_id=engagement, strategic_buyer=ctx.deal_shape,
     )
     return {
         "sections": len(deck.slides),

@@ -1,0 +1,46 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - fictional company, not a real issuer.
+CONFIDENTIAL - management-prepared, provided under NDA. Not public record.
+
+MERIDIAN DATA SYSTEMS - BOARD MATERIALS
+Project Atlas - Strategic Review - 12 June 2026
+
+Slide 1: Internal operating plan, fiscal 2027 to fiscal 2029
+
+The internal plan carries revenue of $584 million in fiscal 2027, growth of 20%. This
+is above the $560 million to $572 million range guided to the market on 12 March. The
+difference is the governance attach programme, which we have not guided externally
+because the pipeline is not yet contracted.
+
+Fiscal 2028 internal plan is $712 million, growth of 22%. Fiscal 2029 is $868 million.
+
+Slide 2: Net revenue retention recovery
+
+The plan assumes net revenue retention recovers to 118% by fiscal 2028 from 112%
+today. The recovery is driven by the governance attach programme, which assumes 34%
+of the Integration Cloud installed base attaches governance within 24 months. Attach
+to date is 9%.
+
+Slide 3: Commercial view versus reported segments
+
+Our two reported segments do not correspond to how we run the business. Internally we
+manage four motions: Enterprise Integration ($268 million), Mid-Market Integration
+($124 million), Governance Attach ($61 million) and Governance Standalone ($34
+million). Mid-Market Integration is where retention has deteriorated: net revenue
+retention in that motion was 96% in fiscal 2026.
+
+Slide 4: Pricing
+
+We took a 7% list-price increase in January 2026. Realised price increase was 3.1%
+after discounting. Renewal discounting averaged 11% across the mid-market cohort,
+against 4% in enterprise.
+
+Slide 5: Public-company cost base
+
+Costs attributable to being listed total $14.7 million annually, of which we estimate
+$11.2 million would not be incurred as a private company. The remainder is audit and
+insurance that would continue in some form.
+
+Slide 6: Engineering concentration
+
+Fourteen engineers hold primary maintainership of the core transformation engine.
+Voluntary turnover in this group was 21% in fiscal 2026 against 14% company-wide.

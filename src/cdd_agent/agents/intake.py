@@ -26,6 +26,7 @@ from cdd_agent.schemas.deal_profile import (
     DeliverableParameters,
     InvestmentThesis,
     ProcessContext,
+    PublicMarketContext,
     SectorDefinition,
     TargetIdentification,
 )
@@ -42,6 +43,18 @@ the Deal Profile Brief, and list what is still missing. Two rules:
 2. Category F (access constraints) governs what tools may run at all. If the user has
    not said whether customer contact is permitted, leave the field at its default and
    record the question as open - do not assume permission.
+3. If the target is listed, three things are load-bearing and must be captured exactly
+   as stated, never inferred. First, which structure is contemplated: a significant
+   minority stake, a controlling stake with the listing retained, or a take-private.
+   These ask different questions of the same company and the decomposition depends on
+   knowing which. Second, the public-market block - ticker, exchange, the unaffected
+   price and the date it refers to, share count, free float, insider holdings and
+   voting structure. Do not populate a price or a float you were not given; an
+   unstated figure is an open question, because every premium in the deck is measured
+   from it. Third, whether the data room is expected to carry material non-public
+   information and whether compliance has acknowledged the resulting trading
+   restriction. Until that acknowledgement is recorded the data-room tools do not run
+   at all, so a guess here does real damage in both directions.
 
 Return the structured Deal Profile Brief."""
 
@@ -50,6 +63,10 @@ class IntakeExtraction(BaseModel):
     """What the model is asked to return. Narrower than DealProfile on purpose."""
 
     target: TargetIdentification
+    public_market: PublicMarketContext = Field(
+        default_factory=PublicMarketContext,
+        description="Populate only for a listed target, only from stated facts.",
+    )
     sector: SectorDefinition
     thesis: InvestmentThesis
     buyer: BuyerProfile
@@ -88,6 +105,7 @@ class IntakeAgent(Agent):
             engagement_id=self.context.engagement_id,
             created_by=self.name,
             target=extraction.target,
+            public_market=extraction.public_market,
             sector=extraction.sector,
             thesis=extraction.thesis,
             buyer=extraction.buyer,
