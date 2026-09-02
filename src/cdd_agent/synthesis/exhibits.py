@@ -113,6 +113,12 @@ def specs_for_section(section: int) -> list[ExhibitSpec]:
 
 
 # --------------------------------------------------------------------- context
+# The Analyst wraps a retrieved passage in "Retrieved evidence bearing on H1: ...".
+# That preamble is our own bookkeeping, not something a source said, so it is stripped
+# before any sentence is quoted - otherwise the scaffolding appears in the deck as
+# though the board deck had asserted it.
+_CLAIM_PREAMBLE = re.compile(r"^Retrieved evidence bearing on [\w.-]+:\s*")
+
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+|(?<=\.)\s(?=[A-Z])")
 
 # A figure of the shape the exhibit's title promises. An exhibit headed "TAM / SAM /
@@ -164,7 +170,8 @@ class ExhibitContext:
         seen: set[str] = set()
         for item in self.matrix.items:
             text = "\n".join(
-                [item.claim] + [c.quoted_text for c in item.citations if c.quoted_text]
+                [_CLAIM_PREAMBLE.sub("", item.claim)]
+                + [c.quoted_text for c in item.citations if c.quoted_text]
             )
             for sentence in _SENTENCE_SPLIT.split(text):
                 sentence = " ".join(sentence.split())
@@ -276,7 +283,11 @@ _PESTEL = (
     ("Social", ("adoption", "workforce", "talent", "demographic")),
     ("Technological", ("ai ", "open-source", "open source", "platform", "substitut",
                        "displacement", "cloud")),
-    ("Environmental", ("environmental", "energy", "sustainab")),
+    # "sustainab" matched "a sustainable retention figure" and filed a financial
+    # statement under Environmental. A marker has to be unambiguous in context or it
+    # produces a confidently mislabelled row.
+    ("Environmental", ("environmental", "carbon", "emission", "esg",
+                       "energy consumption", "data centre power", "data center power")),
     ("Legal", ("regulat", "compliance", "licence", "license", "gdpr", "hipaa",
                "privacy", "litigation")),
 )
@@ -285,12 +296,14 @@ _PESTEL = (
 def pestel(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     rows, citations = [], []
     for factor, markers in _PESTEL:
-        hits = ctx.evidence_about(*markers)
+        # The sentence that mentions the factor, not the chunk that contains it. A
+        # factor marked "evidenced" on the strength of the word "cloud" appearing
+        # somewhere nearby, illustrated by an unrelated claim, is worse than a blank.
+        hits = ctx.statements(*markers, limit=1)
         if hits:
-            rows.append([factor, "evidenced",
-                         " ".join(hits[0].claim.split())[:150],
-                         hits[0].citations[0].short() if hits[0].citations else "-"])
-            citations += hits[0].citations[:1]
+            item, sentence = hits[0]
+            rows.append([factor, "evidenced", sentence, _cite(item)])
+            citations += item.citations[:1]
         else:
             rows.append([factor, "no data", "Not addressed by the material supplied", "-"])
     if all(r[1] == "no data" for r in rows):

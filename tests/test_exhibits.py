@@ -255,3 +255,17 @@ def test_fragments_and_interview_prompts_are_never_quoted_as_findings(tree):
         for row in exhibit.rows:
             assert "?" not in str(row[0]), "an interview prompt asserts nothing"
             assert str(row[0]).endswith((".", "!")), f"fragment quoted: {row[0]!r}"
+
+
+def test_the_agents_own_bookkeeping_is_never_quoted_as_a_source(tree):
+    """The Analyst wraps passages in "Retrieved evidence bearing on H1: ...".
+
+    Quoted verbatim, that scaffolding reads as though the board deck asserted it.
+    """
+    m = _matrix_with(
+        "Retrieved evidence bearing on GROWTH-H1: The company grew at a 21% CAGR."
+    )
+    growth = next(e for e in build_for_section(2, _ctx(tree, matrix=m))
+                  if "CAGR" in e.title)
+    assert growth.rows[0][0] == "The company grew at a 21% CAGR."
+    assert not any("Retrieved evidence" in str(c) for r in growth.rows for c in r)
