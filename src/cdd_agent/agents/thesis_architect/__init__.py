@@ -44,7 +44,13 @@ class ThesisArchitect(Agent):
     def run(self, *, save: bool = True) -> ThesisSearchResult:
         profile = self.context.profile
         if profile is None:
-            raise ValueError("Phase 1 requires a Deal Profile Brief")
+            raise ValueError(
+                "Phase 1 requires a Deal Profile Brief, and this engagement has none. "
+                "Run `cdd intake <engagement> --briefing <file>` to produce one from a "
+                "deal briefing, or `cdd demo` to load the worked example. If you expected "
+                "one to exist, check CDD_DATA_DIR - each data directory holds its own "
+                "engagements."
+            )
         ready, missing = profile.is_ready_for_phase_1()
         if not ready:
             raise ValueError(

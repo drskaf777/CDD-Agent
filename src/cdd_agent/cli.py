@@ -8,6 +8,7 @@ still stops at every escalation.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +25,7 @@ from cdd_agent.agents.synthesizer import Synthesizer
 from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
+from cdd_agent.guardrails.authorization import AuthorizationError
 from cdd_agent.guardrails.escalation import check_phase1, record as record_escalations
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
@@ -35,9 +37,29 @@ from cdd_agent.synthesis.render import write_markdown
 
 app = typer.Typer(
     add_completion=False,
+    pretty_exceptions_enable=False,
     help="AI-based commercial due diligence agent. Output is always a draft for review.",
 )
 console = Console()
+
+
+@contextmanager
+def guarded():
+    """Render an expected refusal as a message rather than a traceback.
+
+    Every gate in this system refuses by raising. A ValueError here means a phase was
+    asked for out of order, or an authorization boundary was hit - both are the design
+    working. Showing a stack trace for them buries the explanation and, in a live
+    demo, reads as a crash.
+    """
+    try:
+        yield
+    except AuthorizationError as exc:
+        console.print(f"[red]Blocked by intake access constraints:[/red] {exc}")
+        raise typer.Exit(code=2) from None
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
 
 
 def _context(engagement: str, data_room: Optional[Path] = None) -> AgentContext:
@@ -70,7 +92,8 @@ def intake(
     if not body.strip():
         raise typer.BadParameter("supply --text or --briefing")
     ctx = _context(engagement)
-    profile = IntakeAgent(ctx).run(body)
+    with guarded():
+        profile = IntakeAgent(ctx).run(body)
     console.print(Panel(f"[bold]{profile.target.legal_name}[/bold]\n"
                         f"Sub-sector: {profile.sector.sub_sector or '(not stated)'}\n"
                         f"Thesis: {profile.thesis.one_sentence_thesis or '(not stated)'}",
@@ -91,7 +114,8 @@ def intake(
 def thesis(engagement: str) -> None:
     """Phase 1 - Tree-of-Thought beam search over candidate hypothesis trees."""
     ctx = _context(engagement)
-    result = ThesisArchitect(ctx).run()
+    with guarded():
+        result = ThesisArchitect(ctx).run()
 
     table = Table(title="Candidate framings (beam width 3)")
     for col in ("Branch", "Framing", "4Q", "Avg", "Status", "Reason"):
@@ -135,9 +159,10 @@ def approve(
     result = ctx.memory.thesis_search()
     if result is None:
         raise typer.BadParameter("no Phase-1 search found; run `cdd thesis` first")
-    if branch:
-        result = architect.override(result, branch, approved_by=by)
-    tree = architect.approve(result, approved_by=by)
+    with guarded():
+        if branch:
+            result = architect.override(result, branch, approved_by=by)
+        tree = architect.approve(result, approved_by=by)
     console.print(f"[green]Approved[/green] {tree.framing_label} ({tree.branch_id}) by {by}.")
 
 
@@ -149,7 +174,8 @@ def request(engagement: str) -> None:
     tree = ctx.memory.hypothesis_tree()
     if tree is None:
         raise typer.BadParameter("no approved hypothesis tree; run `cdd thesis` and `cdd approve`")
-    checklist = Analyst(ctx).generate_data_request(tree)
+    with guarded():
+        checklist = Analyst(ctx).generate_data_request(tree)
     for tier in (Tier.DEAL_CRITICAL, Tier.DEPTH_BUILDING, Tier.ENRICHMENT):
         items = checklist.by_tier(tier)
         console.print(f"\n[bold]Tier {int(tier)}[/bold] ({len(items)} items)")
@@ -185,7 +211,8 @@ def analyze(engagement: str, data_room: Optional[Path] = typer.Option(None)) -> 
     tree = ctx.memory.hypothesis_tree()
     if tree is None:
         raise typer.BadParameter("no approved hypothesis tree")
-    matrix, report = Analyst(ctx).run_evidence_loop(tree)
+    with guarded():
+        matrix, report = Analyst(ctx).run_evidence_loop(tree)
     console.print(report.summary())
     for h in tree.tier_1():
         console.print(f"  [{h.id}] {matrix.rating(h.id).value}"
@@ -199,7 +226,8 @@ def audit(engagement: str) -> None:
     tree = ctx.memory.hypothesis_tree()
     if tree is None:
         raise typer.BadParameter("no approved hypothesis tree")
-    register, report = RiskAuditor(ctx).audit(tree, ctx.memory.evidence_matrix())
+    with guarded():
+        register, report = RiskAuditor(ctx).audit(tree, ctx.memory.evidence_matrix())
     console.print(report.summary())
     table = Table(title="Risk register (severity x likelihood)")
     for col in ("ID", "Category", "Finding", "Score"):
@@ -224,9 +252,10 @@ def synthesize(
     tree = ctx.memory.hypothesis_tree()
     if tree is None:
         raise typer.BadParameter("no approved hypothesis tree")
-    deck, contract = Synthesizer(ctx).run(
-        tree, ctx.memory.evidence_matrix(), ctx.memory.risk_register()
-    )
+    with guarded():
+        deck, contract = Synthesizer(ctx).run(
+            tree, ctx.memory.evidence_matrix(), ctx.memory.risk_register()
+        )
     console.print(f"{len(deck.slides)} sections, groundedness {deck.groundedness():.0%}")
     for warning in contract.warnings:
         console.print(f"[yellow]warning:[/yellow] {warning}")
