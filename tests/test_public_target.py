@@ -227,3 +227,100 @@ def test_each_structure_requests_what_only_it_needs(structure, marker):
     assert marker in items
     # And the public record is requested for every listed structure.
     assert "annual reports" in items
+
+
+# --------------------------------------------------------------- critic scoring
+def test_a_score_written_as_prose_is_recovered_not_discarded():
+    """Observed live: the model put the reason in the score field for two criteria
+    and the ValidationError ended the entire Phase-1 search."""
+    from cdd_agent.agents.thesis_architect.critic import CriticVerdict
+
+    v = CriticVerdict(buyer_criteria_coverage="4 - covers cash-flow stability",
+                      four_question_alignment=3.5,
+                      sub_sector_fit="5. strong fit for enterprise SaaS",
+                      testability=4)
+    assert v.buyer_criteria_coverage == 4.0
+    assert v.sub_sector_fit == 5.0
+
+
+def test_prose_with_no_score_is_still_rejected():
+    """The prune threshold is 3.0 across a three-branch beam, so a guessed score
+    silently decides which decomposition the engagement runs on."""
+    from pydantic import ValidationError
+
+    from cdd_agent.agents.thesis_architect.critic import CriticVerdict
+
+    with pytest.raises(ValidationError):
+        CriticVerdict(buyer_criteria_coverage="the tree is broad but shallow",
+                      four_question_alignment=3, sub_sector_fit=3, testability=3)
+
+
+def test_one_unscorable_branch_does_not_end_the_search(monkeypatch):
+    """CrewAI raises inside kickoff, so the existing raw-string fallback never ran."""
+    from cdd_agent.agents.thesis_architect import critic as critic_mod
+
+    c = critic_mod.Critic.__new__(critic_mod.Critic)
+    c.profile = profile()
+    c.settings = type("S", (), {"offline": False, "crewai_tracing": False})()
+    c.market_search = None
+    monkeypatch.setattr(critic_mod.Critic, "_kb_context", lambda self, tree: "")
+
+    class Boom:
+        def __init__(self, *a, **k): pass
+        def kickoff(self): raise ValueError("unparseable verdict")
+
+    import sys
+    import types
+    fake = types.ModuleType("crewai")
+    fake.Agent = lambda **k: None
+    fake.Task = lambda **k: None
+    fake.Crew = Boom
+    monkeypatch.setitem(sys.modules, "crewai", fake)
+    monkeypatch.setattr("cdd_agent.llm.models.get_crew_llm", lambda: None, raising=False)
+
+    from cdd_agent.schemas.hypothesis import HypothesisTree
+    tree = HypothesisTree(engagement_id="e", created_by="t", root_thesis="t",
+                          branch_id="growth", framing_key="growth",
+                          framing_label="growth-led")
+    verdict = c._crew_verdict(tree)
+    assert 1 <= verdict.buyer_criteria_coverage <= 5
+    assert "could not be scored" in verdict.notes, "the degradation must be visible"
+
+
+def test_a_quote_is_credited_to_the_document_it_came_from():
+    """Live failure: a sentence from the earnings call was credited to the board deck.
+
+    An evidence item routinely carries several citations, and naming the first one
+    regardless of which chunk the sentence came out of is a sourcing error - the
+    class of error this system exists to catch rather than commit.
+    """
+    from cdd_agent.schemas.common import Citation, ConfidenceTag
+    from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
+    from cdd_agent.schemas.hypothesis import HypothesisTree
+    from cdd_agent.schemas.risk import RiskRegister
+    from cdd_agent.synthesis.exhibits import ExhibitContext
+
+    matrix = EvidenceMatrix(engagement_id="e", created_by="t")
+    matrix.add(EvidenceItem(
+        id="EV-1", engagement_id="e", created_by="Analyst", hypothesis_id="H1",
+        claim="Retrieved evidence bearing on H1: assorted context.",
+        tag=ConfidenceTag.PARTIALLY_CONFIRMED, source_kind=SourceKind.DATA_ROOM,
+        citations=[
+            Citation(source_kind=SourceKind.DATA_ROOM, source_file="Board_Deck.txt",
+                     locator="slide 1", quoted_text="The plan assumes recovery."),
+            Citation(source_kind=SourceKind.PUBLIC_FILING,
+                     source_file="Earnings_Call.txt", locator="page 2",
+                     quoted_text="In fiscal 2025 we guided 21% and delivered 22%."),
+        ]))
+    ctx = ExhibitContext(
+        tree=HypothesisTree(engagement_id="e", created_by="t", root_thesis="t",
+                            branch_id="b", framing_key="growth",
+                            framing_label="growth-led"),
+        matrix=matrix, register=RiskRegister(engagement_id="e", created_by="t"),
+        computation=None)
+    (item, sentence), = ctx.statements("guided", limit=1)
+    assert "guided 21%" in sentence
+    assert item.citations[0].source_file == "Earnings_Call.txt", \
+        "the quote must be credited to the document it was taken from"
+    # The matrix itself is untouched, so the next exhibit sees the original order.
+    assert matrix.items[0].citations[0].source_file == "Board_Deck.txt"

@@ -462,8 +462,22 @@ function renderSubject(){
     return;
   }
   const p = s.profile;
+  const pm = p.public_market || {};
+  const listed = p.target.publicly_traded || (p.target.transaction_structure || "").indexOf("listed") >= 0
+                 || p.target.transaction_structure === "take-private";
+  // A listed target changes what the run is allowed to do, so the structure and the
+  // MNPI position belong in the header rather than three clicks away.
+  const badges = listed
+    ? '<span class="pill accent">' + esc(pm.ticker ? pm.exchange + ": " + pm.ticker : "listed") + '</span>' +
+      '<span class="pill">' + esc(p.target.transaction_structure) + '</span>' +
+      (p.access.mnpi_expected
+        ? '<span class="pill ' + (p.access.trading_restriction_acknowledged ? 'neutral' : 'contradicted') + '">' +
+          (p.access.trading_restriction_acknowledged ? 'MNPI · wall-crossed' : 'MNPI · RESTRICTION NOT ACKNOWLEDGED') +
+          '</span>'
+        : "")
+    : "";
   el.innerHTML =
-    '<h2>' + esc(p.target.legal_name) + '</h2>' +
+    '<h2>' + esc(p.target.legal_name) + ' ' + badges + '</h2>' +
     '<span class="thesis">' + esc(p.thesis.one_sentence_thesis) + '</span>' +
     '<span class="spacer"></span>' +
     '<span class="facts">' + esc(p.sector.sub_sector) + ' · ' + esc(p.buyer.buyer_type) +
@@ -648,7 +662,20 @@ function viewOverview(){
     row("Thesis", prof.thesis.one_sentence_thesis) +
     row("Buyer", prof.buyer.buyer_type + " — " + (prof.buyer.decision_criteria||[]).join(", ")) +
     row("Stage", prof.target.deal_stage + (prof.target.ic_date ? " · IC " + prof.target.ic_date : "")) +
+    row("Structure", prof.target.transaction_structure) +
     row("Access", prof.access.vdr_access + (prof.access.above_the_line ? ", above the line" : ", BELOW the line")));
+  const pmk = prof.public_market || {};
+  if(prof.target.publicly_traded || pmk.ticker){
+    const fig = (v, suffix) => (v==null || v==="") ? '<span class="faint">not stated</span>' : (v + (suffix||""));
+    html += card("Listed-target context",
+      '<p class="muted" style="margin:0 0 10px;font-size:13px">As stated at intake and not verified against market data. Blank values are unknowns, not zeroes - every premium in the deck is measured from the unaffected price.</p>' +
+      row("Listing", (pmk.exchange||"") + " " + (pmk.ticker||"")) +
+      row("Unaffected price", fig(pmk.unaffected_share_price, " " + (pmk.currency||"")) + (pmk.unaffected_price_date ? " on " + pmk.unaffected_price_date : "")) +
+      row("Shares / free float", fig(pmk.shares_outstanding_m, "m") + " · " + fig(pmk.free_float_pct, "% float")) +
+      row("Insider holding", fig(pmk.insider_or_founder_stake_pct, "%") + (pmk.dual_class_shares ? " · dual-class" : "")) +
+      row("Coverage / activist", fig(pmk.analyst_coverage_count, " brokers") + (pmk.activist_holder_present ? " · activist on register" : "")) +
+      row("MNPI position", (prof.access.mnpi_expected ? "expected" : "not expected") + " · " + (prof.access.trading_restriction_acknowledged ? "restriction acknowledged" : "NOT acknowledged") + " · issuer contact " + (prof.access.issuer_contact_permitted ? "permitted" : "denied")));
+  }
   html += card("Tool authorization",
     '<p class="muted" style="margin:0 0 10px;font-size:13px">Scope is fixed by role and by intake Category F before any run. A forbidden tool is never offered.</p>' +
     '<div class="tablewrap"><table><thead><tr><th>Role</th><th>Allowed</th></tr></thead><tbody>' +

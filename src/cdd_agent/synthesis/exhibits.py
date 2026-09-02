@@ -226,42 +226,64 @@ class ExhibitContext:
         cell is duly cited, and the reader infers a number that nobody supplied.
         So a sentence qualifies only if it both mentions the subject and carries the
         shape of figure the exhibit claims to display.
+
+        Each hit comes back with the evidence item re-ordered so that the citation the
+        sentence was actually taken from is first. An evidence item routinely carries
+        several citations, and naming the first one regardless put a quote from the
+        earnings call under the board deck - a sourcing error, and the kind this
+        system exists to prevent rather than commit.
         """
         needles = [t.lower() for t in terms]
         out: list[tuple] = []
         seen: set[str] = set()
         for item in self.matrix.items:
-            text = "\n".join(
-                [_CLAIM_PREAMBLE.sub("", item.claim)]
-                + [c.quoted_text for c in item.citations if c.quoted_text]
-            )
-            for sentence in _SENTENCE_SPLIT.split(text):
-                sentence = " ".join(sentence.split())
-                if not (12 <= len(sentence) <= 320):
-                    continue
-                # A quotable finding is a whole declarative sentence. Retrieval hands
-                # back chunk-boundary fragments ("Now the platform vendors bundle")
-                # and interview prompts ("Q: How do you evaluate vendors?"); quoting
-                # either as a finding attributes to the source something it did not
-                # assert.
-                if not sentence.endswith((".", "!")) or len(sentence.split()) < 5:
-                    continue
-                if sentence.startswith(("Q:", "Q.")) or "?" in sentence:
-                    continue
-                low = sentence.lower()
-                if not any(n in low for n in needles):
-                    continue
-                if figure is not None and not figure.search(sentence):
-                    continue
-                key = low[:80]
-                if key in seen:
-                    continue
-                seen.add(key)
-                out.append((item, sentence))
-                if len(out) >= limit:
-                    return out
+            # (text, the citation it came from) - the claim is the Analyst's own
+            # wording, so it has no single source document of its own.
+            sources: list[tuple[str, object]] = [
+                (_CLAIM_PREAMBLE.sub("", item.claim), None)
+            ]
+            sources += [(c.quoted_text, c) for c in item.citations if c.quoted_text]
+            for text, citation in sources:
+                for sentence in _SENTENCE_SPLIT.split(text):
+                    sentence = " ".join(sentence.split())
+                    if not (12 <= len(sentence) <= 320):
+                        continue
+                    # A quotable finding is a whole declarative sentence. Retrieval
+                    # hands back chunk-boundary fragments ("Now the platform vendors
+                    # bundle") and interview prompts ("Q: How do you evaluate
+                    # vendors?"); quoting either as a finding attributes to the source
+                    # something it did not assert.
+                    if not sentence.endswith((".", "!")) or len(sentence.split()) < 5:
+                        continue
+                    if sentence.startswith(("Q:", "Q.")) or "?" in sentence:
+                        continue
+                    low = sentence.lower()
+                    if not any(n in low for n in needles):
+                        continue
+                    if figure is not None and not figure.search(sentence):
+                        continue
+                    key = low[:80]
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    out.append((_attributed(item, citation), sentence))
+                    if len(out) >= limit:
+                        return out
         return out
 
+
+
+def _attributed(item, citation):
+    """The evidence item with the citation this sentence came from placed first.
+
+    A copy, not a mutation: the matrix is shared across every exhibit built in this
+    pass, and re-ordering it in place would make one exhibit change what the next one
+    cites.
+    """
+    if citation is None or not item.citations:
+        return item
+    rest = [c for c in item.citations if c is not citation]
+    return item.model_copy(update={"citations": [citation] + rest})
 
 # Exhibits whose content is arithmetic over parsed data-room tables. Design spec s VI
 # puts quantitative analysis at step 4, under the Analyst, before slide generation at

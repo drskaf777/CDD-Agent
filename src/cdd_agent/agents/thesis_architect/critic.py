@@ -17,10 +17,11 @@ Scoring is deliberately split:
 
 from __future__ import annotations
 
+import re
 import os
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from cdd_agent.config import get_settings
 from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS, classify
@@ -72,6 +73,29 @@ class CriticVerdict(BaseModel):
     sub_sector_reason: str = ""
     testability_reason: str = ""
     notes: str = ""
+
+    @field_validator("buyer_criteria_coverage", "four_question_alignment",
+                     "sub_sector_fit", "testability", mode="before")
+    @classmethod
+    def _score_from_text(cls, value: object) -> object:
+        """Recover a score the model wrote as prose in the numeric field.
+
+        Each score is paired with a reason field, and models periodically put the
+        reason in both - returning "4 - the tree covers three of the four questions"
+        where a float was asked for. Rejecting that outright loses a verdict that was
+        substantively fine, and killed a whole Phase-1 search in practice.
+
+        Only a leading in-range score is recovered. Text with no number, or whose
+        first number is not a valid score, still fails: the prune threshold is 3.0
+        and the beam is three branches wide, so inventing a score here would quietly
+        decide which decomposition the engagement runs on.
+        """
+        if not isinstance(value, str):
+            return value
+        match = re.match(r"\s*([1-5](?:\.\d+)?)\b", value)
+        if match:
+            return float(match.group(1))
+        return value
 
 
 def _configure_crewai_tracing(enabled: bool) -> None:
@@ -185,10 +209,22 @@ class Critic:
             agent=critic,
             output_pydantic=CriticVerdict,
         )
-        result = Crew(
-            agents=[critic], tasks=[task], verbose=False,
-            tracing=self.settings.crewai_tracing,
-        ).kickoff()
+        try:
+            result = Crew(
+                agents=[critic], tasks=[task], verbose=False,
+                tracing=self.settings.crewai_tracing,
+            ).kickoff()
+        except Exception as exc:
+            # CrewAI validates the structured output inside kickoff and *raises* when
+            # it will not parse, so the fallback below was unreachable on the path it
+            # was written for: a single unparseable verdict ended the whole Phase-1
+            # search. One branch failing to score is not a reason to lose the other
+            # two, so it degrades to the deterministic rubric and says so in the notes
+            # that reach the deck.
+            return self._offline_verdict(tree, self.four_question_check(tree)).model_copy(
+                update={"notes": f"critic output could not be scored ({type(exc).__name__}); "
+                                 "deterministic rubric used for this branch"}
+            )
         verdict = getattr(result, "pydantic", None)
         if isinstance(verdict, CriticVerdict):
             return verdict
@@ -197,8 +233,6 @@ class Critic:
         return self._offline_verdict(tree, self.four_question_check(tree)).model_copy(
             update={"notes": "structured critic output unavailable; deterministic rubric used"}
         )
-
-    # ----------------------------------------------------------------- offline
     def _offline_verdict(
         self, tree: HypothesisTree, check: FourQuestionCheck
     ) -> CriticVerdict:
