@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime as _dt
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
 
 from cdd_agent.schemas.common import Citation, ConfidenceTag, SourceKind, Stamped
 

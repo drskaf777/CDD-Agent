@@ -25,14 +25,14 @@ from typing import Optional
 from cdd_agent.agents.base import Agent, AgentContext
 from cdd_agent.guardrails.authorization import AgentRole, AuthorizationError
 from cdd_agent.knowledge.data_request_catalog import (
-    catalog_for,
-    public_record_note,
     ADDONS_BY_MODULE,
     UNIVERSAL_CATALOG,
     CatalogItem,
+    catalog_for,
+    public_record_note,
 )
 from cdd_agent.knowledge.outline import module_for_sub_sector
-from cdd_agent.schemas.common import ConfidenceTag, SourceKind, Tier
+from cdd_agent.schemas.common import ConfidenceTag, Tier
 from cdd_agent.schemas.data_request import DataRequestChecklist, DataRequestItem
 from cdd_agent.schemas.deal_profile import PublicMarketContext
 from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix

@@ -17,8 +17,8 @@ Scoring is deliberately split:
 
 from __future__ import annotations
 
-import re
 import os
+import re
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator

@@ -37,6 +37,8 @@ from cdd_agent.guardrails.escalation import (
     check_source_conflicts,
     check_tier1_evidence,
     final_recommendation_review,
+)
+from cdd_agent.guardrails.escalation import (
     record as record_escalations,
 )
 from cdd_agent.retrieval.ingestion import IngestionReport, ingest_directory

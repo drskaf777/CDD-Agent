@@ -19,8 +19,8 @@ DEMO = Path(__file__).resolve().parents[1] / "demo"
 def client(isolated_settings, monkeypatch):
     # The API module holds a module-level store bound at import time; rebind it to the
     # per-test database so tests cannot see each other's engagements.
-    import cdd_agent.web.api as api
     from cdd_agent.state.store import StateStore
+    from cdd_agent.web import api
 
     monkeypatch.setattr(api, "_store", StateStore())
     monkeypatch.setattr(api, "_tables", {})
@@ -144,7 +144,7 @@ def test_report_renders_in_both_modes(client):
     assert "Trace and audit history" in r.text
 
     from cdd_agent.agents.base import AgentContext
-    import cdd_agent.web.api as api
+    from cdd_agent.web import api
     from cdd_agent.web.report import render_report
 
     ctx = AgentContext.create(eng, store=api._store)

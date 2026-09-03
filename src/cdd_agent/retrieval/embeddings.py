@@ -47,13 +47,13 @@ class HashingEmbeddingFunction:
     def build_from_config(config: dict[str, int]) -> "HashingEmbeddingFunction":
         return HashingEmbeddingFunction(dim=int(config.get("dim", _HASH_DIM)))
 
-    def __call__(self, input: Sequence[str]) -> list[list[float]]:  # noqa: A002
+    def __call__(self, input: Sequence[str]) -> list[list[float]]:
         return [self._embed(t) for t in _as_sequence(input)]
 
-    def embed_documents(self, input: Sequence[str]) -> list[list[float]]:  # noqa: A002
+    def embed_documents(self, input: Sequence[str]) -> list[list[float]]:
         return self(input)
 
-    def embed_query(self, input: Sequence[str] | str) -> list[list[float]]:  # noqa: A002
+    def embed_query(self, input: Sequence[str] | str) -> list[list[float]]:
         return self(input)
 
     def _embed(self, text: str) -> list[float]:

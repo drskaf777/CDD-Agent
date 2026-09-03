@@ -202,7 +202,6 @@ def chunk_document(doc: SourceDocument) -> list[Chunk]:
                     "version_group": doc.version_group or "",
                     "hypothesis_branch": doc.hypothesis_branch or "",
                     "boundary_kind": kind,
-                   "source_kind": doc.source_kind.value,
                     "source_kind": doc.source_kind.value,
                 },
             )

@@ -126,7 +126,7 @@ def _check_langchain(pf: Preflight, live_call: bool) -> None:
 
 def _check_critic(pf: Preflight) -> None:
     try:
-        import crewai  # noqa: F401
+        import crewai
     except ImportError:
         pf.add(Check(
             "Critic (CrewAI)", False, "crewai not installed on this interpreter",

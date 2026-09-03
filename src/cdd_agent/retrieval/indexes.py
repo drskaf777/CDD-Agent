@@ -180,7 +180,11 @@ class _BaseIndex:
         docs = raw.get("documents", [[]])[0]
         metas = raw.get("metadatas", [[]])[0]
         dists = raw.get("distances", [[]])[0]
-        for cid, doc, meta, dist in zip(ids, docs, metas, dists):
+        # strict: these four arrays are one query result split four ways. If the
+        # backend ever returns them ragged, silently zipping to the shortest would
+        # drop retrieved chunks without a trace - the failure would look like a
+        # thin data room rather than a bug.
+        for cid, doc, meta, dist in zip(ids, docs, metas, dists, strict=True):
             meta = meta or {}
             candidates.append(
                 RetrievedChunk(

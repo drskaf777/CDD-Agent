@@ -26,7 +26,8 @@ from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.authorization import AuthorizationError
-from cdd_agent.guardrails.escalation import check_phase1, record as record_escalations
+from cdd_agent.guardrails.escalation import check_phase1
+from cdd_agent.guardrails.escalation import record as record_escalations
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.orchestration.controller import Controller

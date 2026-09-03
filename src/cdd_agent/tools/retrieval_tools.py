@@ -44,7 +44,10 @@ class RetrievalObservation:
         if not self.citations:
             return f"No Data - {self.note}"
         lines = [f"{len(self.citations)} passage(s) retrieved for {self.query!r}:"]
-        for cite, passage in zip(self.citations, self.passages):
+        # strict: a citation and its passage are a pair. Zipping to the shortest
+        # would print one chunk under another chunk's citation, which is precisely
+        # the mis-attribution this system exists to prevent.
+        for cite, passage in zip(self.citations, self.passages, strict=True):
             snippet = " ".join(passage.split())[:300]
             lines.append(f"  - {cite.short()} [sim {cite.similarity:.2f}]: {snippet}")
         if self.superseded_filtered:

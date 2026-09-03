@@ -26,8 +26,20 @@ from cdd_agent.knowledge.outline import (
 from cdd_agent.knowledge.risk_taxonomy import TAXONOMY, Screen, applicable_categories
 
 __all__ = [
-    "ADDONS_BY_MODULE", "CATEGORIES", "CatalogItem", "FOUR_QUESTIONS",
-    "INTAKE_PROTOCOL", "IntakeCategory", "PREBUILT_MODULES", "QUESTION_KEYS",
-    "Screen", "TAXONOMY", "UNIVERSAL_CATALOG", "UNIVERSAL_OUTLINE",
-    "applicable_categories", "classify", "module_for_sub_sector", "tailored_outline",
+    "ADDONS_BY_MODULE",
+    "CATEGORIES",
+    "FOUR_QUESTIONS",
+    "INTAKE_PROTOCOL",
+    "PREBUILT_MODULES",
+    "QUESTION_KEYS",
+    "TAXONOMY",
+    "UNIVERSAL_CATALOG",
+    "UNIVERSAL_OUTLINE",
+    "CatalogItem",
+    "IntakeCategory",
+    "Screen",
+    "applicable_categories",
+    "classify",
+    "module_for_sub_sector",
+    "tailored_outline",
 ]

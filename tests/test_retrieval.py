@@ -7,8 +7,6 @@ and de-duplication - because those are what make a citation mean something.
 
 from __future__ import annotations
 
-import datetime as _dt
-
 from cdd_agent.config import get_settings
 from cdd_agent.retrieval.chunking import (
     SourceDocument,

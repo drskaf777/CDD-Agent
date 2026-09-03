@@ -11,8 +11,8 @@ from __future__ import annotations
 import pytest
 
 from cdd_agent.retrieval.ingestion import StructuredTable
-from cdd_agent.schemas.deck import Exhibit, ExhibitStatus, Series
 from cdd_agent.schemas.common import Citation, ConfidenceTag, SourceKind
+from cdd_agent.schemas.deck import Exhibit, ExhibitStatus
 from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
 from cdd_agent.schemas.risk import RiskRegister
 from cdd_agent.synthesis.exhibits import (
@@ -21,7 +21,6 @@ from cdd_agent.synthesis.exhibits import (
     build_all_for_section,
     build_for_section,
     is_presentable,
-    specs_for_section,
 )
 from cdd_agent.tools.structured_computation import StructuredComputationTool
 

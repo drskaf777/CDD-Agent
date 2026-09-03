@@ -12,11 +12,9 @@ programme and a hard block later.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
-from cdd_agent.agents.base import Agent, AgentContext
+from cdd_agent.agents.base import Agent
 from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.schemas.deal_profile import (

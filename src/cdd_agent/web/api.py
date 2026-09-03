@@ -33,6 +33,8 @@ from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.guardrails.escalation import (
     check_phase1,
     check_tier1_evidence,
+)
+from cdd_agent.guardrails.escalation import (
     record as record_escalations,
 )
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories

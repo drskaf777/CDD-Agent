@@ -13,17 +13,15 @@ consequences of the data, so writing them by hand would let them drift from it.
 
 from __future__ import annotations
 
-from typing import Optional
-
-from cdd_agent.agents.base import Agent, AgentContext
+from cdd_agent.agents.base import Agent
 from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.guardrails.output_contract import ContractReport, check_deck
 from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS
 from cdd_agent.knowledge.outline import tailored_outline
-from cdd_agent.schemas.deal_profile import PublicMarketContext
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.schemas.common import ConfidenceTag, OutlineSection
-from cdd_agent.schemas.deck import Claim, Deck, Exhibit, ExhibitStatus, Slide
+from cdd_agent.schemas.deal_profile import PublicMarketContext
+from cdd_agent.schemas.deck import Claim, Deck, Exhibit, Slide
 from cdd_agent.schemas.evidence import EvidenceMatrix
 from cdd_agent.schemas.hypothesis import HypothesisTree
 from cdd_agent.schemas.risk import GapOwner, InformationGap, RiskRegister

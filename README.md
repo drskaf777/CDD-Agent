@@ -186,6 +186,84 @@ prose, and the intake agent will not invent one — so `cdd run --briefing demo/
 halts at the Phase-0 gate by design. With an API key set and `CDD_OFFLINE=0`, that
 command runs intake for real and the fixture is unnecessary.
 
+## Listed targets
+
+A public company has already been read by everyone who reads filings, and is repriced
+daily on the result. Restating that analysis is not diligence, so for a listed target
+the work shifts to the differential — what this engagement concludes that the price
+does not already reflect — and to the constraints that only exist because there is a
+share price and other shareholders.
+
+Three structures are supported, and they are kept distinct because they ask different
+questions of the same company:
+
+| Structure | What changes |
+| --- | --- |
+| Significant minority stake | The buyer compels nothing. The plan being underwritten belongs to incumbent management and cannot be replaced, so the diligence is about whether that plan works, what influence is actually secured, and whether a block that size can be exited. |
+| Controlling stake, listing retained | Minority shareholders continue alongside. Related-party value capture is limited, the public-company cost base stays in the base case, and free-float and listing requirements bind. |
+| Take-private | The offer must win a vote at a premium to an unaffected price, which sets a floor the base case has to clear. Completion becomes a commercial question: change-of-control consents that can be withheld are revenue at risk on close. Delisting removes the public-company cost base, which is a real lever and must be evidenced rather than assumed. |
+
+The structure is a Phase-1 prerequisite, not a detail. A listed target with no named
+structure will not start the beam search, because a decomposition written before the
+structure is known tests the wrong question.
+
+**MNPI is a hard gate, not a warning.** Reading a data room on a listed issuer puts the
+firm in possession of material non-public information and restricts everyone briefed
+from trading. That is not a decision an agent may take on the firm behalf, so until
+compliance records the acknowledgement the data-room tools are withheld entirely — not
+offered and refused, but absent from the tool list. Market search stays available,
+because the public record is precisely what may be worked on before wall-crossing.
+Contact with issuer insiders defaults to denied under Reg FD: the exposure of a leaky
+call lands on the asset being bought.
+
+**Two source kinds, and one deliberate omission.** A filing is *attested* — audited,
+certified, legally exposed — but it is still the issuer own account of itself, so it
+carries extra weight without becoming independent. Sell-side research is explicitly
+**not** independent: analysts are guided by the company, so consensus agreeing with the
+plan is one source counted twice, which is the failure the four-way confidence schema
+exists to prevent. Documents are classified by filename, because a data room routinely
+holds the last 10-K beside the board pack, and ambiguity resolves towards the more
+restrictive reading.
+
+Everything is scoped. A private deal sees none of it — no listed-target risk categories
+counting against its coverage metric, no public exhibits, no structure module — and the
+data request stops asking management for what they published last quarter, marking
+those items retrieved rather than requested.
+
+### The listed demo
+
+Project Atlas is a worked listed-target deal on Meridian Data Systems, a fictional
+NASDAQ-listed enterprise data-integration company. Its data room mixes a public record
+(annual report, earnings call, proxy, broker note) with a confidential board pack, and
+the trap is the gap between them: the internal plan carries revenue above the range
+guided to the market, and the reported segments do not correspond to how the business
+is actually run.
+
+The same company is briefed three ways, one per structure:
+
+```bash
+cdd run project-atlas-tp  --briefing demo/public/briefing-take-private.md \
+                          --data-room demo/public/data_room --approve-phase1
+cdd approve project-atlas-tp --by "you" --branch growth   # ties are not auto-resolved
+cdd request project-atlas-tp
+cdd ingest  project-atlas-tp demo/public/data_room
+cdd analyze project-atlas-tp --data-room demo/public/data_room
+cdd audit   project-atlas-tp
+cdd synthesize project-atlas-tp
+```
+
+Swap the briefing for `briefing-minority.md` or `briefing-control.md` to see the same
+company produce a different deck. The take-private run raises *deal completion and
+approvals* and carries a completion-conditions exhibit; the minority run raises
+*governance and control rights* and carries an influence-rights exhibit instead. Both
+share the unaffected price, the register, consensus against the management plan,
+guidance against delivery, and the MNPI position.
+
+To run it against a real company, drop that company actual filings into a data-room
+folder and write the briefing to match. Filings are recognised by filename — `10-K`,
+`10-Q`, `DEF-14A`, `earnings-call`, `annual-report` — so they are cited as attested
+public record rather than as confidential management material.
+
 ## The interface
 
 ```bash
@@ -308,6 +386,7 @@ src/cdd_agent/
   state/         SQLite store, memory, and the MCP access layer
   evaluation/    the six metrics from Checkpoint 6.1
 demo/            Project Sentinel: briefing + data room
+  public/        Project Atlas: a listed target, briefed three ways
 docs/            ARCHITECTURE.md — module-to-specification map
 ```
 

@@ -181,9 +181,9 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+|(?<=\.)\s(?=[A-Z])")
 MONEY = re.compile(
     r"[$\u00a3\u20ac]\s?\d[\d,.]*\s*(?:bn|b\b|billion|m\b|mm|million|k\b)?"
     r"|\b\d[\d,.]*\s*(?:bn|billion|million|trillion)\b",
-    re.I,
+    re.IGNORECASE,
 )
-PERCENT = re.compile(r"\d[\d,.]*\s?%|\bcagr\b", re.I)
+PERCENT = re.compile(r"\d[\d,.]*\s?%|\bcagr\b", re.IGNORECASE)
 FIGURE = re.compile(r"\d")
 
 @dataclass

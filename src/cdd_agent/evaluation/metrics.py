@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
-from cdd_agent.schemas.deal_profile import DealShape
 from cdd_agent.schemas.common import ConfidenceTag
+from cdd_agent.schemas.deal_profile import DealShape
 from cdd_agent.schemas.deck import Deck
 from cdd_agent.schemas.evidence import EvidenceMatrix
 from cdd_agent.schemas.hypothesis import HypothesisTree
