@@ -156,3 +156,45 @@ def test_report_renders_in_both_modes(client):
     # Both themes are defined at token level, never only inside a media query.
     assert ':root[data-theme="dark"]' in embedded
     assert "prefers-color-scheme" in embedded
+
+
+def test_the_demo_fixture_cannot_overwrite_a_real_deal_profile(client):
+    """This happened on a live engagement, and was expensive.
+
+    The Intake control read "Reload profile" once intake was done, which sounds like
+    re-reading the current brief. It posted the demo fixture. A Deal Profile Brief
+    built from a real briefing was replaced with a different company, and the next
+    Phase-1 run decomposed the wrong target against the right evidence - slow, and
+    quietly wrong, which is the worse half.
+    """
+    engagement = "overwrite-test"
+    real = (
+        "Target is Northbeam Analytics Ltd, privately held, majority buyout. "
+        "Sub-sector is B2B analytics SaaS. The thesis in one sentence: acquire "
+        "Northbeam and cross-sell into the installed base. Buyer is a financial "
+        "sponsor and cares most about cash-flow stability."
+    )
+    r = client.post(f"/api/engagements/{engagement}/intake", json={"briefing": real})
+    assert r.status_code == 200, r.text
+
+    before = client.get(f"/api/engagements/{engagement}").json()["profile"]
+    r = client.post(f"/api/engagements/{engagement}/intake",
+                    json={"use_demo_fixture": True})
+    assert r.status_code == 409, "the fixture must not silently replace a real brief"
+    assert "already holds a Deal Profile Brief" in r.text
+
+    after = client.get(f"/api/engagements/{engagement}").json()["profile"]
+    assert after["target"]["legal_name"] == before["target"]["legal_name"]
+
+    # Explicit intent still works, because sometimes you do mean to discard it.
+    r = client.post(f"/api/engagements/{engagement}/intake",
+                    json={"use_demo_fixture": True, "force": True})
+    assert r.status_code == 200, r.text
+
+
+def test_the_fixture_may_still_seed_an_empty_engagement(client):
+    r = client.post("/api/engagements/fresh-one/intake", json={"use_demo_fixture": True})
+    assert r.status_code == 200, r.text
+    # And re-loading it over itself is a no-op, not a conflict.
+    r = client.post("/api/engagements/fresh-one/intake", json={"use_demo_fixture": True})
+    assert r.status_code == 200, r.text

@@ -114,6 +114,8 @@ def _ctx(engagement: str) -> AgentContext:
 class IntakeBody(BaseModel):
     briefing: str = ""
     use_demo_fixture: bool = False
+    # Explicit opt-in to discarding an existing Deal Profile Brief.
+    force: bool = False
 
 
 class SelectBody(BaseModel):
@@ -204,6 +206,24 @@ def run_intake(engagement: str, body: IntakeBody) -> dict[str, Any]:
         raw = json.loads(fixture.read_text(encoding="utf-8"))
         raw["engagement_id"] = engagement
         profile = DealProfile.model_validate(raw)
+        # Loading the fixture over a real intake destroys it. That happened on a live
+        # engagement: the demo profile replaced a Deal Profile Brief built from a real
+        # briefing, and the next Phase-1 run decomposed the wrong company against the
+        # right evidence - slow, and quietly wrong, which is worse. The fixture may
+        # only seed an empty engagement or replace itself.
+        existing = ctx.memory.deal_profile()
+        if existing is not None and not body.force:
+            same = existing.target.legal_name == profile.target.legal_name
+            if not same:
+                raise HTTPException(
+                    409,
+                    f"{engagement} already holds a Deal Profile Brief for "
+                    f"{existing.target.legal_name}. Loading the demo fixture would "
+                    f"replace it with {profile.target.legal_name} and orphan every "
+                    f"artifact built from it. Re-run intake from the original "
+                    f"briefing instead, or resend with force=true if you meant to "
+                    f"discard it.",
+                )
         ctx.memory.save_deal_profile(profile, agent="Intake Agent (demo fixture)")
     else:
         if not body.briefing.strip():

@@ -515,10 +515,19 @@ function renderSteps(){
       pill.onclick = () => { S.tab = "hypotheses"; render(); };
       li.appendChild(pill);
     } else if(p.id === "intake"){
-      li.appendChild(mkBtn(p.state === "done" ? "Reload profile" : "Load demo profile",
-        () => withBusy("intake", "Intake", () => api(
-          "/api/engagements/" + encodeURIComponent(S.eng) + "/intake",
-          {method:"POST", body:JSON.stringify({use_demo_fixture:true})}))));
+      // The button used to read "Reload profile" once intake was done, and posted the
+      // demo fixture - so a label that sounded like re-reading the current brief in
+      // fact replaced it with a different company. It now says what it does, and is
+      // only offered where there is nothing to lose.
+      const prof = S.snap && S.snap.profile;
+      const isFixture = prof && prof.target &&
+        prof.target.legal_name === "Sentinel Secure Ltd";
+      if(!prof || isFixture){
+        li.appendChild(mkBtn("Load demo profile",
+          () => withBusy("intake", "Intake", () => api(
+            "/api/engagements/" + encodeURIComponent(S.eng) + "/intake",
+            {method:"POST", body:JSON.stringify({use_demo_fixture:true})}))));
+      }
     } else {
       const canRun = p.state === "available" || p.state === "done";
       li.appendChild(mkBtn(p.state === "done" ? "Re-run" : "Run",
