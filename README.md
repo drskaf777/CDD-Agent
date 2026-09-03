@@ -83,9 +83,9 @@ project's own dependencies, and pip resolves them silently:
 
 The `mcp` split is handled: `state/mcp_server.py` imports whichever name exists.
 
-The `chromadb` split is not something code can paper over — Chroma cannot read its own
+The `chromadb` split is not something code can paper over (Chroma cannot read its own
 persisted format across versions, and it fails with a Rust panic rather than a Python
-error. The index is therefore version-stamped, and opening a mismatched one raises a
+error). The index is therefore version-stamped, and opening a mismatched one raises a
 readable `IndexVersionMismatch` telling you to rebuild. If you want both interpreters
 working at once, give each its own directory:
 
@@ -121,7 +121,7 @@ $env:CDD_WORKSPACE_ID="wrkspc_..."
 The header is then sent by both the LangChain client and CrewAI's Anthropic provider.
 Ordinary keys carry the workspace implicitly and need nothing here.
 
-Preflight makes one minimal model call — a fraction of a cent — because a key being
+Preflight makes one minimal model call (a fraction of a cent) because a key being
 *present* is not the same as a key that *works*. Pass `--no-call` to skip it.
 
 Because CrewAI pins an older chromadb, a 3.13 environment needs its own index
