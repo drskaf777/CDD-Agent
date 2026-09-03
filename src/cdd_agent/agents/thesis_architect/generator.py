@@ -12,6 +12,7 @@ on whichever framing it thought of first.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
@@ -147,10 +148,21 @@ class ThoughtGenerator:
         self.settings = get_settings()
 
     def generate(self, prior_corrections: list[str] | None = None) -> list[HypothesisTree]:
-        return [
-            self._one(framing, prior_corrections or [])
-            for framing in FRAMINGS[: self.settings.beam_width]
-        ]
+        """One candidate tree per framing.
+
+        Run concurrently. The three framings are fixed in advance and none of them
+        reads another output, so there is nothing to serialise beyond the fact that
+        the loop was written as a loop - and each call is a minute of waiting on the
+        API. Results are collected in framing order, because the routing rules break
+        a tie by the order the framings are declared.
+        """
+        framings = FRAMINGS[: self.settings.beam_width]
+        corrections = prior_corrections or []
+        if self.settings.offline or len(framings) < 2:
+            return [self._one(f, corrections) for f in framings]
+        with ThreadPoolExecutor(max_workers=len(framings),
+                                thread_name_prefix="tot-generate") as pool:
+            return list(pool.map(lambda f: self._one(f, corrections), framings))
 
     def _one(self, framing: Framing, corrections: list[str]) -> HypothesisTree:
         if self.settings.offline:

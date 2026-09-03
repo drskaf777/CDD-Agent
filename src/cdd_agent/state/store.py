@@ -107,6 +107,16 @@ class StateStore:
         """Write a document. `agent` is mandatory - anonymous writes are impossible."""
         if not agent or not agent.strip():
             raise ValueError("every state-store write must be attributed to an agent")
+        # An artifact records the engagement it belongs to. Filing it under a different
+        # one is how a deck about one company ends up in another company engagement,
+        # so the disagreement is refused at the boundary rather than discovered later
+        # by a reader who has no way to tell.
+        owner = getattr(document, "engagement_id", None)
+        if owner and owner != engagement_id:
+            raise ValueError(
+                f"refusing to file a {type(document).__name__} belonging to "
+                f"engagement {owner!r} under {engagement_id!r}"
+            )
         coll = _coll(collection)
         body = _to_json(document)
         now = _dt.datetime.now(_dt.timezone.utc).isoformat()

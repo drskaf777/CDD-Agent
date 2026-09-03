@@ -24,6 +24,7 @@ from typing import Optional
 
 from cdd_agent.agents.base import Agent, AgentContext
 from cdd_agent.guardrails.authorization import AgentRole, AuthorizationError
+from cdd_agent.guardrails.coherence import raise_if_incoherent
 from cdd_agent.knowledge.data_request_catalog import (
     ADDONS_BY_MODULE,
     UNIVERSAL_CATALOG,
@@ -99,6 +100,12 @@ class Analyst(Agent):
         hypotheses they are load-bearing for, so a Tier-1 item can be justified rather
         than just asserted.
         """
+        # Everything below is derived from the tree, which was derived from the
+        # brief. If those two no longer agree the whole checklist would be a request
+        # for the wrong company data, so this is a stop rather than a warning.
+        raise_if_incoherent(
+            self.context.engagement_id, profile=self.context.profile, tree=tree
+        )
         profile = self.context.profile
         sub_sector = profile.sector.sub_sector if profile else ""
         business_model = profile.sector.business_model.value if profile else ""

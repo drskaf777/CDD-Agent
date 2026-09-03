@@ -30,6 +30,7 @@ from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.authorization import AgentRole
+from cdd_agent.guardrails.coherence import check_engagement
 from cdd_agent.guardrails.escalation import (
     check_phase1,
     check_tier1_evidence,
@@ -169,7 +170,16 @@ def snapshot(engagement: str) -> dict[str, Any]:
     stored = [doc for _, doc in _store.list(engagement, Collection.ESCALATION)]
 
     applicable = applicable_categories(ctx.deal_shape)
+    # Artifacts are built from one another and nothing re-checks the chain, so a
+    # replaced upstream artifact leaves the rest intact, plausible and about another
+    # company. This is the one read the whole interface renders from, so the
+    # disagreement surfaces everywhere at once.
+    incoherence = check_engagement(
+        engagement, profile=profile, tree=tree, deck=deck, matrix=matrix,
+        register=register,
+    )
     return {
+        "incoherence": [i.to_dict() for i in incoherence],
         "engagement_id": engagement,
         "phases": _phase_states(
             profile, search, tree, checklist, matrix, register, deck,

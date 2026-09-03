@@ -644,7 +644,7 @@ function renderPanel(){
 /* ------------------------------------------------------------------ overview */
 function viewOverview(){
   const s = S.snap, prof = s.profile;
-  let html = "";
+  let html = incoherenceBanner();
   if(s.escalations.length){
     html += s.escalations.map(e =>
       '<div class="gate rise"><h3>' + (e.blocking ? "Blocks the pipeline" : "Notice") +
@@ -699,6 +699,20 @@ function viewOverview(){
 }
 function stat(k,v,d){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
 function card(title, body){ return '<div class="card"><div class="card-head"><h3>'+esc(title)+'</h3></div><div class="card-body">'+body+'</div></div>'; }
+function incoherenceBanner(){
+  const items = (S.snap && S.snap.incoherence) || [];
+  if(!items.length) return "";
+  // Loud on purpose. Every count on this page can be right while the artifacts
+  // describe two different companies, so the numbers cannot be trusted to show it.
+  return '<div class="card" style="border-color:var(--contradicted);margin-bottom:16px">' +
+    '<h3 style="margin:0 0 8px;color:var(--contradicted)">These artifacts disagree about the target</h3>' +
+    '<p class="muted" style="margin:0 0 10px;font-size:13px">An upstream artifact was replaced after the ones below it were built. ' +
+    'Counts and charts will still render, and will be about the wrong company.</p>' +
+    items.map(i => '<div class="tr-row"><span class="faint mono">' + esc(i.artifact) + '</span>' +
+      '<span>' + esc(i.detail) + ' <em>' + esc(i.remedy) + '</em></span></div>').join("") +
+    '</div>';
+}
+
 function row(k,v){ return '<div style="display:grid;grid-template-columns:108px minmax(0,1fr);gap:11px;padding:4px 0"><span class="faint" style="font-size:12.5px">'+esc(k)+'</span><span>'+esc(v)+'</span></div>'; }
 
 /* ---------------------------------------------------------------- hypotheses */

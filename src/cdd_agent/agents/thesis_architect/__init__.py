@@ -16,6 +16,7 @@ protocol that MCP implements.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from cdd_agent.agents.base import Agent, AgentContext
@@ -66,11 +67,21 @@ class ThesisArchitect(Agent):
         branches = ThoughtGenerator(profile).generate(corrections)
         self._persist_branches(branches, stage="generated")
 
-        # 2. Score each branch independently. The Critic never sees another branch's
-        #    score, so ordering cannot influence judgment.
+        # 2. Score each branch independently. The Critic never sees another branch
+        #    score, so ordering cannot influence judgment - which is also precisely
+        #    what makes it safe to score them at the same time. Scoring was the larger
+        #    half of Phase 1 latency and it was entirely serial.
         critic = Critic(profile, market_search=self.tools().market_search)
-        for branch in branches:
-            branch.score = critic.score(branch)
+        if self.offline or len(branches) < 2:
+            for branch in branches:
+                branch.score = critic.score(branch)
+        else:
+            with ThreadPoolExecutor(max_workers=len(branches),
+                                    thread_name_prefix="tot-score") as pool:
+                for branch, score in zip(branches,
+                                         pool.map(critic.score, branches),
+                                         strict=True):
+                    branch.score = score
         self._persist_branches(branches, stage="scored")
 
         # 3. Route: select, escalate a tie, or ask a clarifying question.
