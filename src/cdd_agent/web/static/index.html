@@ -427,6 +427,9 @@ async function boot(){
   // front of every engagement, and one click ingested another company customer file
   // into a real one - which then appeared in the deck as computed findings. A
   // convenience that is one click from contaminating an engagement is not one.
+  // The demo path is a hint, never a value. Filling it put the demo data room in
+  // front of every engagement, and one click ingested another company documents into
+  // a real one. An engagement own path is offered back below, once it has one.
   if(info.demo_data_room) $("dataRoom").placeholder = info.demo_data_room;
   const sel = $("engSelect");
   sel.innerHTML = "";
@@ -456,7 +459,8 @@ async function refresh(){
 }
 
 /* -------------------------------------------------------------------- render */
-function render(){ renderSubject(); renderSteps(); renderTabs(); renderPanel(); }
+function render(){ renderSubject(); renderSteps(); renderTabs(); renderPanel();
+                   fillDataRoomForEngagement(); }
 
 function renderSubject(){
   const s = S.snap, el = $("subject");
@@ -559,7 +563,7 @@ function runPhase(id){
   if(id === "ingest"){
     const path = $("dataRoom").value.trim();
     if(!path){
-      toast("Set the data-room path in the rail before ingesting.", "err");
+      toast("No data room recorded for this engagement yet. Put its folder path in the rail - the greyed-out example is the demo data room, not this engagement.", "err");
       return null;
     }
     return withBusy("ingest", "Ingestion", () => api(base + "ingest",
@@ -703,6 +707,15 @@ function viewOverview(){
 }
 function stat(k,v,d){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div><div class="d">'+esc(d)+'</div></div>'; }
 function card(title, body){ return '<div class="card"><div class="card-head"><h3>'+esc(title)+'</h3></div><div class="card-body">'+body+'</div></div>'; }
+function fillDataRoomForEngagement(){
+  // Only ever this engagement own folder. Re-ingesting it is safe and is the common
+  // case after correcting documents; anything else has to be typed deliberately.
+  const own = S.snap && S.snap.data_room;
+  const box = $("dataRoom");
+  if(own){ box.value = own; box.title = "Recorded for this engagement"; }
+  else if(box.title === "Recorded for this engagement"){ box.value = ""; box.title = ""; }
+}
+
 function incoherenceBanner(){
   const items = (S.snap && S.snap.incoherence) || [];
   if(!items.length) return "";

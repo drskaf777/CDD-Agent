@@ -191,6 +191,9 @@ def snapshot(engagement: str) -> dict[str, Any]:
     )
     return {
         "incoherence": [i.to_dict() for i in incoherence],
+        # This engagement own data room, so the interface can offer it back
+        # without ever offering the demo one.
+        "data_room": ingestion.get("data_room", ""),
         "engagement_id": engagement,
         "phases": _phase_states(
             profile, search, tree, checklist, matrix, register, deck,

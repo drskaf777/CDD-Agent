@@ -120,6 +120,21 @@ def _file_slug(source_file: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or stem.lower()
 
 
+# A periodic filing reports a period; it is not a revision of the filing before it.
+# Last year annual report is not a superseded draft of this year - it is the
+# authoritative record of that year, and the only place the prior figures exist. Left
+# to the ordinary rule, three consecutive 10-Ks share one group and the two older ones
+# are filtered as stale, which silently removes exactly the history a trend or a
+# guidance-against-delivery test is built from. An amendment (10-K/A) is a genuine
+# revision and is deliberately not matched here, so it still supersedes its original.
+_PERIODIC = re.compile(
+    r"(10-?k|10-?q|8-?k|20-?f|6-?k|def-?14a|defa14a|proxy|annual-?report|"
+    r"interim-?report|earnings-?call|earnings-?release|quarterly-?report)"
+    r"(?![a-z0-9]*/?a\b)",
+    re.IGNORECASE,
+)
+
+
 def _version_group(source_file: str) -> str:
     """Group name shared by drafts and finals of the same document.
 
@@ -136,8 +151,14 @@ def _version_group(source_file: str) -> str:
         stem,
         flags=re.IGNORECASE,
     )
+    periodic = _PERIODIC.search(stem)
+    dated = re.search(r"\d{4}[-_]?\d{2}[-_]?\d{2}", stem)
     stem = re.sub(r"[ _-]*\d{4}[-_]?\d{2}[-_]?\d{2}\b", "", stem)
-    return re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or stem.lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or stem.lower()
+    if periodic and dated:
+        # Each period is its own group, so none of them supersedes another.
+        return f"{slug}-{re.sub(r'[^0-9]', '', dated.group(0))}"
+    return slug
 
 
 def detect_boundaries(text: str, doc_type: str) -> tuple[list[int], str]:

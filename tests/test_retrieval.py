@@ -190,3 +190,24 @@ def test_knowledge_base_seed_is_queryable():
     assert sum(counts.values()) > 0
     result = KnowledgeBaseIndex().query("standing risk taxonomy", similarity_floor=0.0)
     assert not result.is_empty
+
+
+def test_periodic_filings_do_not_supersede_each_other():
+    """Three consecutive annual reports are three periods, not three drafts.
+
+    Under the ordinary rule they shared one version group and the two older ones were
+    filtered as stale - removing exactly the history a growth trend or a
+    guidance-against-delivery test is built from.
+    """
+    from cdd_agent.retrieval.chunking import _version_group
+
+    groups = {_version_group(f) for f in (
+        "FRSH_10-K_2026-02-26.txt", "FRSH_10-K_2025-02-20.txt",
+        "FRSH_10-K_2024-02-16.txt")}
+    assert len(groups) == 3, "each fiscal year must stand on its own"
+
+    # An amendment is a real revision and still competes with its original.
+    assert _version_group("MSA_TopAccounts_v2_DRAFT_2026-03-15.txt") == \
+           _version_group("MSA_TopAccounts_FINAL_2026-04-01.txt")
+    assert _version_group("Board_Deck_2025-11-02.txt") == \
+           _version_group("Board_Deck_2026-05-10.txt")

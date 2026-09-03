@@ -24,11 +24,34 @@ from pathlib import Path
 
 BASE = "https://www.sec.gov"
 WANTED = {
-    "10-K": ("{t}_10-K_{d}.txt", "Form 10-K annual report"),
-    "10-Q": ("{t}_10-Q_{d}.txt", "Form 10-Q quarterly report"),
-    "DEF 14A": ("{t}_DEF-14A_proxy_{d}.txt", "Definitive Proxy Statement (Schedule 14A)"),
+    "10-K": ("{t}_10-K_{d}.txt", "Form 10-K annual report", 3),
+    "10-Q": ("{t}_10-Q_{d}.txt", "Form 10-Q quarterly report", 4),
+    "DEF 14A": ("{t}_DEF-14A_proxy_{d}.txt", "Definitive Proxy Statement (Schedule 14A)", 2),
+    # The 8-K itself is a cover page; the earnings release is an exhibit to it, and
+    # that is where guidance lives. Guidance against delivery, quarter by quarter, is
+    # the cheapest test of management credibility a listed target offers - and it
+    # needs several quarters to say anything at all.
+    "8-K": ("{t}_earnings-call_{d}.txt", "quarterly earnings release (Exhibit 99.1 to Form 8-K)", 6),
 }
 NOISE = re.compile(r"^(iso4217:|xbrli:|utr:|http://|\d{10}$|[0-9-]+$|true$|false$)", re.I)
+EARNINGS_HINTS = ("earningsrelease", "earnings-release", "earningsrelea",
+                  "quarterlyearnings", "pressrelease", "exhibit99", "ex-99", "ex99")
+
+
+def earnings_exhibit(cik: str, accession: str, email: str) -> str | None:
+    """The earnings release filed as an exhibit, if this 8-K carries one.
+
+    Most 8-Ks are not earnings, so a miss here is normal and simply skipped.
+    """
+    listing = json.loads(get(
+        f"{BASE}/Archives/edgar/data/{int(cik)}/{accession}/index.json", email))
+    names = [item.get("name", "") for item in listing.get("directory", {}).get("item", [])]
+    for name in names:
+        stem = name.lower().replace("_", "").replace("-", "")
+        if name.lower().endswith((".htm", ".html")) and any(h.replace("-", "") in stem
+                                                            for h in EARNINGS_HINTS):
+            return name
+    return None
 
 
 def get(url: str, email: str) -> bytes:
@@ -97,21 +120,27 @@ def main() -> int:
                     recent["filingDate"], strict=True))
 
     written = 0
-    for form, (pattern, label) in WANTED.items():
-        hit = next((r for r in rows if r[0] == form), None)
-        if hit is None:
+    for form, (pattern, label, limit) in WANTED.items():
+        hits = [r for r in rows if r[0] == form][:limit]
+        if not hits:
             print(f"  {form}: none found")
             continue
-        _, accession, document, date = hit
-        url = f"{BASE}/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{document}"
-        header = (f"SOURCE DOCUMENT - {match['title']} ({ticker}), {label}, filed "
-                  f"{date}. Retrieved from SEC EDGAR: {url}\n"
-                  f"This is the company own filed text, not a summary.")
-        name = pattern.format(t=ticker, d=date)
-        (out / name).write_text(to_text(get(url, args.email), header), encoding="utf-8")
-        words = len((out / name).read_text(encoding="utf-8").split())
-        print(f"  {form:8} {date}  -> {name} ({words:,} words)")
-        written += 1
+        for _, accession, document, date in hits:
+            folder = accession.replace("-", "")
+            if form == "8-K":
+                document = earnings_exhibit(cik, folder, args.email)
+                if document is None:
+                    continue  # an 8-K without an earnings release is not wanted
+            url = f"{BASE}/Archives/edgar/data/{int(cik)}/{folder}/{document}"
+            header = (f"SOURCE DOCUMENT - {match['title']} ({ticker}), {label}, filed "
+                      f"{date}. Retrieved from SEC EDGAR: {url}\n"
+                      f"This is the company own filed text, not a summary.")
+            name = pattern.format(t=ticker, d=date)
+            (out / name).write_text(to_text(get(url, args.email), header),
+                                    encoding="utf-8")
+            words = len((out / name).read_text(encoding="utf-8").split())
+            print(f"  {form:8} {date}  -> {name} ({words:,} words)")
+            written += 1
 
     print(f"\n{written} filing(s) in {out}")
     print("Published consensus and market data are not on EDGAR. Add them as a separate "
