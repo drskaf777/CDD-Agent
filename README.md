@@ -147,6 +147,33 @@ $env:CDD_CREWAI_TRACING="false"
 If you answered "N" to that prompt at some point, CrewAI saved it. Setting
 `CDD_CREWAI_TRACING=true` overrides the saved preference on the next run.
 
+### Where the runtime lives
+
+Keep the state store and the vector indexes outside any cloud-synced folder -
+OneDrive, Dropbox, iCloud. The source tree is fine in one; the runtime is not.
+
+Cloud sync clients copy file by file with no understanding of an open SQLite database
+or a Chroma index. They will upload a half-written index, hold a lock on a file the
+process is using, leave `filename-DESKTOP-ABC123.ext` conflict copies inside a
+directory that is meant to be authoritative, and - the one that actually bit here -
+dehydrate a file to a cloud placeholder and then fail to fetch it back:
+
+```
+ImportError: DLL load failed while importing _pydantic_core:
+The cloud operation was unsuccessful.
+```
+
+That was a virtual environment, mid-run, with no warning. Set the two paths in `.env`
+and point them somewhere local:
+
+```
+CDD_DATA_DIR=C:\Users\you\cdd-runtime\data
+CDD_CHROMA_DIR=C:\Users\you\cdd-runtime\data\chroma
+```
+
+Nothing is lost by doing this. The engagement state is reproducible from the data
+room, the code is in git, and neither is what cloud sync is protecting.
+
 ## Run the demo engagement
 
 Project Sentinel is a worked B2B cybersecurity SaaS deal with a cross-sell thesis and a
