@@ -666,7 +666,10 @@ function viewOverview(){
     row("Access", prof.access.vdr_access + (prof.access.above_the_line ? ", above the line" : ", BELOW the line")));
   const pmk = prof.public_market || {};
   if(prof.target.publicly_traded || pmk.ticker){
-    const fig = (v, suffix) => (v==null || v==="") ? '<span class="faint">not stated</span>' : (v + (suffix||""));
+    // row() escapes its value, so this must be plain text - returning markup here
+    // printed a literal <span> tag in the card. "not stated" is the honest word for
+    // an unknown, and it must never read as a zero.
+    const fig = (v, suffix) => (v==null || v==="") ? "not stated" : (v + (suffix||""));
     html += card("Listed-target context",
       '<p class="muted" style="margin:0 0 10px;font-size:13px">As stated at intake and not verified against market data. Blank values are unknowns, not zeroes - every premium in the deck is measured from the unaffected price.</p>' +
       row("Listing", (pmk.exchange||"") + " " + (pmk.ticker||"")) +

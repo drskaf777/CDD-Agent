@@ -31,3 +31,10 @@ demo/output/
 
 # Local pipeline run logs
 *.log
+
+# Filings fetched from EDGAR for a real-company run. Reproduce them with
+# scripts/fetch_edgar.py rather than committing another company disclosures.
+demo/real/*/data_room/*_10-K_*.txt
+demo/real/*/data_room/*_10-Q_*.txt
+demo/real/*/data_room/*_DEF-14A_*.txt
+demo/real/*/data_room/*earnings*

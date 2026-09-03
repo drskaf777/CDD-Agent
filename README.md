@@ -264,6 +264,33 @@ folder and write the briefing to match. Filings are recognised by filename — `
 `10-Q`, `DEF-14A`, `earnings-call`, `annual-report` — so they are cited as attested
 public record rather than as confidential management material.
 
+### Running against a real listed company
+
+The filings are fetched rather than committed, so the repository carries no copy of
+another company disclosures and the data room is always current:
+
+```bash
+python scripts/fetch_edgar.py FRSH --email you@example.com
+```
+
+That resolves the ticker to a CIK, pulls the latest 10-K, 10-Q and proxy, and writes
+them to `demo/real/frsh/data_room/` with a provenance header naming the EDGAR URL.
+The `--email` is required because SEC returns 403 to undeclared automated traffic; it
+is sent only to sec.gov, in the User-Agent header their access policy asks for.
+
+Published consensus and market data are not on EDGAR. Add them as one document and
+name it so it contains `analyst` or `consensus` - the ingester then classifies it as
+sell-side research, which the system treats as *not* independent corroboration, on
+the grounds that covering analysts are guided by the company.
+
+Then write a briefing and run the pipeline as above.
+`demo/real/frsh/briefing-take-private.md` is a worked example on Freshworks Inc. It
+opens by saying what it is: the company, its filings and the market data are real; the
+buyer, thesis and hold assumptions are a screening exercise, and no approach exists.
+Keeping that line in the briefing matters, because everything downstream inherits it -
+a deck that reads as though a live take-private were underway would be the most
+misleading artifact the system could produce.
+
 ## The interface
 
 ```bash
@@ -387,6 +414,7 @@ src/cdd_agent/
   evaluation/    the six metrics from Checkpoint 6.1
 demo/            Project Sentinel: briefing + data room
   public/        Project Atlas: a listed target, briefed three ways
+  real/          worked run on a real listed company; filings are fetched
 docs/            ARCHITECTURE.md — module-to-specification map
 ```
 

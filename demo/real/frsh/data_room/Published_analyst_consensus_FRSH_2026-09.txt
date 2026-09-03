@@ -1,0 +1,51 @@
+PUBLISHED THIRD-PARTY ANALYSIS - Freshworks Inc. (NASDAQ: FRSH)
+Compiled 2026-09-03 from publicly reported aggregates. These are published consensus
+figures and market data, not proprietary broker notes: individual sell-side research
+is subscription-only and is not reproduced here. Each figure carries its source.
+
+CONSENSUS ESTIMATES
+
+Analysts covering Freshworks forecast revenue of $960.9 million for 2026, across 15
+covering analysts. That represents roughly 10% growth on the trailing twelve months.
+Source: Simply Wall St, https://simplywall.st/stocks/us/software/nasdaq-frsh/freshworks
+
+Company guidance for 2026 revenue is $952 million to $960 million. Consensus therefore
+sits marginally above the top of the guided range.
+Source: company guidance as reported alongside consensus, Simply Wall St (above)
+
+PRICE TARGETS
+
+Consensus rating is "Buy" with an average price target of $11.75, across 15 analysts
+polled by S&P Global.
+Source: StockAnalysis, https://stockanalysis.com/stocks/frsh/forecast/
+
+A separate poll of 13 analysts gives an average 12-month target of $12.38, with a high
+of $18.00 and a low of $8.00.
+Source: Investing.com, https://www.investing.com/equities/freshworks-inc-consensus-estimates
+
+A third aggregate reports an average one-year target of $11.96, low $8.08, high $16.80.
+Source: Alpha Spread, https://www.alphaspread.com/security/nasdaq/frsh/analyst-estimates
+
+Analysts cut their target price following the most recent earnings report.
+Source: Yahoo Finance, https://finance.yahoo.com/markets/stocks/articles/freshworks-inc-nasdaq-frsh-just-123200931.html
+
+MARKET DATA
+
+The shares traded at $13.86 on 2026-08-28, against a 52-week range of $6.79 to $13.99.
+The shares therefore trade above every published average price target cited above, and
+near the top of their 52-week range.
+Source: Morningstar, https://www.morningstar.com/stocks/xnas/frsh/quote
+
+Shares outstanding are 260.92 million and market capitalisation is approximately
+$3.62 billion.
+Source: StockAnalysis, https://stockanalysis.com/stocks/frsh/market-cap/
+
+Market capitalisation has fallen from $10.13 billion at the IPO on 2021-09-22 to
+approximately $3.63 billion as at 2026-09-01, a decline of about 64%.
+Source: CompaniesMarketCap, https://companiesmarketcap.com/eur/freshworks/marketcap/
+
+NOTE ON EVIDENTIAL WEIGHT
+
+Published consensus is not independent corroboration of management guidance. Covering
+analysts are guided by the company and build their models from company disclosure, so
+agreement between consensus and guidance is substantially one source counted twice.

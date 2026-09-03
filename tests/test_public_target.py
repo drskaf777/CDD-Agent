@@ -29,7 +29,9 @@ from cdd_agent.schemas.deal_profile import (
     TransactionStructure,
     VDRAccess,
 )
+from cdd_agent.schemas.deck import ExhibitStatus
 from cdd_agent.schemas.risk import RiskCategory
+from cdd_agent.synthesis.exhibits import FIGURE as FIGURE_RE
 
 MINORITY = TransactionStructure.PUBLIC_MINORITY_STAKE
 CONTROL = TransactionStructure.PUBLIC_CONTROL_STAKE
@@ -324,3 +326,74 @@ def test_a_quote_is_credited_to_the_document_it_came_from():
         "the quote must be credited to the document it was taken from"
     # The matrix itself is untouched, so the next exhibit sees the original order.
     assert matrix.items[0].citations[0].source_file == "Board_Deck.txt"
+
+
+def test_method_references_are_never_quoted_as_findings_about_the_target():
+    """The Knowledge Base holds the outline, the taxonomy, the request catalogue.
+
+    Live run on real filings put "[Tier 2] Financial Records: Current-year budget vs."
+    into a deck under "Management plan", cited to our own data-request catalogue. It
+    reads as a finding about the company and is nothing of the kind.
+    """
+    from cdd_agent.schemas.common import Citation, ConfidenceTag
+    from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
+    from cdd_agent.schemas.hypothesis import HypothesisTree
+    from cdd_agent.schemas.risk import RiskRegister
+    from cdd_agent.synthesis.exhibits import ExhibitContext
+
+    matrix = EvidenceMatrix(engagement_id="e", created_by="t")
+    matrix.add(EvidenceItem(
+        id="EV-KB", engagement_id="e", created_by="Analyst", hypothesis_id="H1",
+        claim="Retrieved evidence bearing on H1: reference material.",
+        tag=ConfidenceTag.PARTIALLY_CONFIRMED, source_kind=SourceKind.KNOWLEDGE_BASE,
+        citations=[Citation(source_kind=SourceKind.KNOWLEDGE_BASE,
+                            source_file="kb_universal_data_request_catalog.txt",
+                            locator="para 1",
+                            quoted_text="Guidance of 20% growth is a Tier 2 item.")]))
+    ctx = ExhibitContext(
+        tree=HypothesisTree(engagement_id="e", created_by="t", root_thesis="t",
+                            branch_id="b", framing_key="growth",
+                            framing_label="growth-led"),
+        matrix=matrix, register=RiskRegister(engagement_id="e", created_by="t"),
+        computation=None)
+    assert ctx.statements("guidance", figure=FIGURE_RE, limit=3) == []
+
+
+def _ctx_with(quoted: str, kind=SourceKind.PUBLIC_FILING, filename="FRSH_10-K.txt"):
+    from cdd_agent.schemas.common import Citation, ConfidenceTag
+    from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
+    from cdd_agent.schemas.hypothesis import HypothesisTree
+    from cdd_agent.schemas.risk import RiskRegister
+    from cdd_agent.synthesis.exhibits import ExhibitContext
+
+    matrix = EvidenceMatrix(engagement_id="e", created_by="t")
+    matrix.add(EvidenceItem(
+        id="EV-1", engagement_id="e", created_by="Analyst", hypothesis_id="H1",
+        claim="Retrieved evidence bearing on H1: context.",
+        tag=ConfidenceTag.PARTIALLY_CONFIRMED, source_kind=kind,
+        citations=[Citation(source_kind=kind, source_file=filename,
+                            locator="para 1", quoted_text=quoted)]))
+    return ExhibitContext(
+        tree=HypothesisTree(engagement_id="e", created_by="t", root_thesis="t",
+                            branch_id="b", framing_key="growth",
+                            framing_label="growth-led"),
+        matrix=matrix, register=RiskRegister(engagement_id="e", created_by="t"),
+        computation=None)
+
+
+def test_accounting_estimates_are_not_analyst_estimates():
+    """Every filing carries the phrase; matching it put a stock-compensation note
+    into the deck under Published consensus."""
+    from cdd_agent.synthesis.exhibits import CATALOGUE, consensus_vs_plan
+
+    spec = next(s for s in CATALOGUE if s.key == "consensus_vs_plan")
+    accounting = _ctx_with(
+        "Significant assumptions and estimates used in preparing our consolidated "
+        "financial statements include those related to the useful lives of 3 assets.")
+    built = consensus_vs_plan(accounting, spec)
+    assert built.status is ExhibitStatus.GAP, "accounting language is not consensus"
+
+    real = _ctx_with("Consensus across the 15 covering analysts is $960.9 million.")
+    built = consensus_vs_plan(real, spec)
+    assert built.status is ExhibitStatus.EVIDENCED
+    assert "960.9" in built.rows[0][1]

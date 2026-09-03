@@ -237,12 +237,19 @@ class ExhibitContext:
         out: list[tuple] = []
         seen: set[str] = set()
         for item in self.matrix.items:
-            # (text, the citation it came from) - the claim is the Analyst's own
+            # (text, the citation it came from) - the claim is the Analyst own
             # wording, so it has no single source document of its own.
-            sources: list[tuple[str, object]] = [
-                (_CLAIM_PREAMBLE.sub("", item.claim), None)
-            ]
-            sources += [(c.quoted_text, c) for c in item.citations if c.quoted_text]
+            sources: list[tuple[str, object]] = []
+            if not all(c.source_kind is SourceKind.KNOWLEDGE_BASE for c in item.citations):
+                sources.append((_CLAIM_PREAMBLE.sub("", item.claim), None))
+            # The Knowledge Base holds cross-engagement *method* references - the
+            # outline, the risk taxonomy, the data-request catalogue. They describe how
+            # diligence is done, not anything about this target, so a sentence lifted
+            # from one and placed in an exhibit reads as a finding about the company
+            # when it is nothing of the kind. Retrieval may still use them for context;
+            # they simply cannot be quoted as evidence.
+            sources += [(c.quoted_text, c) for c in item.citations
+                        if c.quoted_text and c.source_kind is not SourceKind.KNOWLEDGE_BASE]
             for text, citation in sources:
                 for sentence in _SENTENCE_SPLIT.split(text):
                     sentence = " ".join(sentence.split())
@@ -583,16 +590,15 @@ def growth_levers(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
                            str(len(ctx.matrix.for_hypothesis(h.id)))])
     if not levers:
         return _gap(spec)
-    citations = [
-        c for row in levers for item in ctx.matrix.for_hypothesis(row[0])
-        for c in item.citations
-    ]
+    citations = _target_citations(
+        [item for row in levers for item in ctx.matrix.for_hypothesis(row[0])]
+    )
     if not citations:
         return _gap(spec, "No evidence yet supports the levers the thesis depends on.")
     return Exhibit(
         title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
         columns=["Hypothesis", "Lever under test", "Evidence status", "Items"],
-        rows=levers, citations=citations[:6],
+        rows=levers, citations=citations,
         note="Ease-of-execution scoring requires named initiatives with owners and "
              "sizing; these are the growth levers the thesis actually depends on.",
     )
@@ -613,6 +619,21 @@ def pricing_elasticity(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     )
 
 
+def _target_citations(items, limit: int = 6) -> list:
+    """Citations that actually say something about the target.
+
+    Knowledge-Base chunks are cross-engagement method references - the outline, the
+    risk taxonomy, the data-request catalogue. A risk table sourced to our own
+    taxonomy document is circular: it cites the list the risk was screened from, not
+    evidence that the risk is real here. Dropping them can leave an exhibit unsourced,
+    which is the correct outcome - it is then omitted and logged as a data request.
+    """
+    return [
+        c for item in items for c in item.citations
+        if c.source_kind is not SourceKind.KNOWLEDGE_BASE
+    ][:limit]
+
+
 def _risk_table(ctx: ExhibitContext, spec: ExhibitSpec,
                 categories: tuple[RiskCategory, ...]) -> Exhibit:
     risks = [r for r in ctx.register.ranked() if r.category in categories]
@@ -622,9 +643,9 @@ def _risk_table(ctx: ExhibitContext, spec: ExhibitSpec,
     # table with no traceable source is an assertion, and an exhibit that cannot be
     # sourced does not belong in the report at all.
     wanted = {eid for r in risks for eid in r.evidence_ids}
-    citations = [
-        c for item in ctx.matrix.items if item.id in wanted for c in item.citations
-    ]
+    citations = _target_citations(
+        [item for item in ctx.matrix.items if item.id in wanted]
+    )
     if not citations:
         return _gap(spec, "The findings in this category carry no traceable source.")
     return Exhibit(
@@ -632,7 +653,7 @@ def _risk_table(ctx: ExhibitContext, spec: ExhibitSpec,
         columns=["ID", "Finding", "Sev", "Lik", "Score", "Flags"],
         rows=[[r.id, r.description, str(r.severity), str(r.likelihood), str(r.score),
                "management data only" if r.management_data_only else ""] for r in risks],
-        citations=citations[:6],
+        citations=citations,
         note="Drawn from the Risk Register, so it cannot disagree with Section 8.",
     )
 
@@ -763,10 +784,13 @@ def consensus_vs_plan(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     street has already published, the buyer is paying a premium for growth that is
     priced, and that conclusion is worth stating plainly.
     """
+    # Deliberately not "estimate": every filing says "assumptions and estimates used
+    # in preparing our consolidated financial statements", and matching that put a
+    # stock-compensation note into the deck under Published consensus.
     consensus = [
         (i, s) for i, s in ctx.statements(
-            "consensus", "analyst", "sell-side", "street", "estimate",
-            figure=FIGURE, limit=4)
+            "consensus", "analyst", "sell-side", "sell side", "price target",
+            "covering analysts", figure=FIGURE, limit=4)
     ]
     guidance = [
         (i, s) for i, s in ctx.statements(

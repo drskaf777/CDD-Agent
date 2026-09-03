@@ -8,6 +8,7 @@ still stops at every escalation.
 
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -41,6 +42,17 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
     help="AI-based commercial due diligence agent. Output is always a draft for review.",
 )
+# Windows consoles still default to a legacy code page, so printing a smart quote or
+# a dash - which any model-written data-request line may contain, and which every real
+# SEC filing contains - raised UnicodeEncodeError and killed the command mid-render.
+# Re-encoding the streams as UTF-8 with replacement is the fix: a run must not die
+# over a character it cannot draw.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):  # not a reconfigurable stream
+        pass
+
 console = Console()
 
 
