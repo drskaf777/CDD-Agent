@@ -120,3 +120,72 @@ def test_a_second_data_room_is_refused_from_any_caller(isolated_settings, tmp_pa
     assert check_data_room("deal-1", second, store=store, force=True)
     # And re-ingesting the same folder is not a conflict.
     assert check_data_room("deal-1", first, store=store)
+
+
+def _profile_for(store: StateStore, engagement: str, target: str) -> None:
+    from cdd_agent.schemas.deal_profile import (
+        BuyerProfile, DealProfile, InvestmentThesis, SectorDefinition,
+        TargetIdentification,
+    )
+    store.put(engagement, Collection.DEAL_PROFILE, "current", DealProfile(
+        engagement_id=engagement, created_by="Intake Agent",
+        target=TargetIdentification(legal_name=target),
+        sector=SectorDefinition(sub_sector="enterprise SaaS"),
+        thesis=InvestmentThesis(one_sentence_thesis="Buy it."),
+        buyer=BuyerProfile(decision_criteria=["growth"])), agent="test")
+
+
+def _bind(store: StateStore, engagement: str, room) -> None:
+    store.put(engagement, Collection.METRICS, "ingestion",
+              {"data_room": str(room.resolve())}, agent="test")
+
+
+def test_one_target_may_be_diligenced_under_several_structures(isolated_settings, tmp_path):
+    """Project Atlas runs one company under two structures against one set of
+    documents. Forcing a copy per engagement would let the copies drift, so two decks
+    would cite different versions of the same filing while both looked fine."""
+    from cdd_agent.retrieval.ingestion import check_data_room
+
+    store = StateStore()
+    room = tmp_path / "meridian"
+    room.mkdir()
+    _profile_for(store, "atlas-tp", "Meridian Data Systems, Inc.")
+    _profile_for(store, "atlas-min", "Meridian Data Systems, Inc.")
+    _bind(store, "atlas-tp", room)
+    # Same target, shared folder: allowed.
+    assert check_data_room("atlas-min", room, store=store)
+
+
+def test_two_companies_may_not_share_a_data_room(isolated_settings, tmp_path):
+    """The same contamination arriving from the other direction."""
+    from cdd_agent.retrieval.ingestion import DataRoomSharedAcrossTargets, check_data_room
+
+    store = StateStore()
+    room = tmp_path / "sentinel"
+    room.mkdir()
+    _profile_for(store, "project-sentinel", "Sentinel Secure Ltd")
+    _profile_for(store, "project-kanpur", "Freshworks Inc.")
+    _bind(store, "project-sentinel", room)
+    with pytest.raises(DataRoomSharedAcrossTargets, match="Freshworks"):
+        check_data_room("project-kanpur", room, store=store)
+    # Deliberate override remains possible.
+    assert check_data_room("project-kanpur", room, store=store, force=True)
+
+
+def test_an_engagement_owns_a_folder_by_default(isolated_settings):
+    """Isolation should be what happens when nobody thinks about it."""
+    from cdd_agent.retrieval.ingestion import default_data_room
+
+    a = default_data_room("project-kanpur")
+    b = default_data_room("project-sentinel")
+    assert a != b
+    assert a.is_dir() and b.is_dir()
+    assert "project-kanpur" in str(a)
+    # Ids come from the user, so a hostile one must not escape the engagements
+    # directory. Containment is the property that matters, not the spelling.
+    from cdd_agent.config import get_settings
+
+    root = get_settings().engagements_dir.resolve()
+    escaped = default_data_room("../../etc", create=False).resolve()
+    assert root in escaped.parents, f"{escaped} escaped {root}"
+    assert escaped.name == "data_room"

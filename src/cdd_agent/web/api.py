@@ -41,7 +41,11 @@ from cdd_agent.guardrails.escalation import (
 )
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.retrieval.indexes import IndexVersionMismatch
-from cdd_agent.retrieval.ingestion import DataRoomConflict, ingest_directory
+from cdd_agent.retrieval.ingestion import (
+    DataRoomConflict,
+    default_data_room,
+    ingest_directory,
+)
 from cdd_agent.schemas.common import ConfidenceTag, Tier
 from cdd_agent.schemas.deal_profile import DealProfile
 from cdd_agent.state.store import Collection, StateStore
@@ -194,6 +198,10 @@ def snapshot(engagement: str) -> dict[str, Any]:
         # This engagement own data room, so the interface can offer it back
         # without ever offering the demo one.
         "data_room": ingestion.get("data_room", ""),
+        # What this engagement would own if nobody points it elsewhere. Offered so
+        # that isolation is the path of least resistance rather than something the
+        # user has to think of.
+        "suggested_data_room": str(default_data_room(engagement, create=False)),
         "engagement_id": engagement,
         "phases": _phase_states(
             profile, search, tree, checklist, matrix, register, deck,

@@ -33,7 +33,11 @@ from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.orchestration.controller import Controller
 from cdd_agent.guardrails.coherence import EngagementIncoherent
-from cdd_agent.retrieval.ingestion import DataRoomConflict, ingest_directory
+from cdd_agent.retrieval.ingestion import (
+    DataRoomConflict,
+    default_data_room,
+    ingest_directory,
+)
 from cdd_agent.schemas.common import Tier
 from cdd_agent.state.store import Collection, StateStore
 from cdd_agent.synthesis.render import write_markdown
@@ -207,6 +211,29 @@ def request(engagement: str) -> None:
 
 
 # ------------------------------------------------------------------- Phase 3-4
+@app.command("data-room")
+def data_room_cmd(
+    engagement: str = typer.Argument(..., help="Engagement id."),
+    show_only: bool = typer.Option(False, "--show", help="Print the path without creating it."),
+) -> None:
+    """Create (or show) the data-room folder this engagement owns.
+
+    One folder per engagement is the default because isolation should be what happens
+    when nobody thinks about it. Pointing an engagement at a shared folder is still
+    possible - it just has to be deliberate, and it is refused outright when the other
+    engagement is about a different company.
+    """
+    store = StateStore()
+    room = default_data_room(engagement, create=not show_only)
+    bound = (store.get(engagement, Collection.METRICS, "ingestion") or {}).get("data_room")
+    console.print(f"[bold]{room}[/bold]")
+    if bound and str(room) != bound:
+        console.print(f"[yellow]This engagement is currently ingesting from {bound} "
+                      f"instead.[/yellow]")
+    elif not show_only:
+        console.print("[dim]Put this engagement documents here, then: "
+                      f"cdd ingest {engagement} \"{room}\"[/dim]")
+
 @app.command()
 def ingest(engagement: str, data_room: Path) -> None:
     """Phase 3 - classify, chunk, and index a data-room folder."""

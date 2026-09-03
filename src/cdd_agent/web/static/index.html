@@ -710,10 +710,13 @@ function card(title, body){ return '<div class="card"><div class="card-head"><h3
 function fillDataRoomForEngagement(){
   // Only ever this engagement own folder. Re-ingesting it is safe and is the common
   // case after correcting documents; anything else has to be typed deliberately.
-  const own = S.snap && S.snap.data_room;
+  const snap = S.snap || {};
   const box = $("dataRoom");
-  if(own){ box.value = own; box.title = "Recorded for this engagement"; }
-  else if(box.title === "Recorded for this engagement"){ box.value = ""; box.title = ""; }
+  const mine = "Recorded for this engagement";
+  const offered = "This engagement own folder - put its documents here";
+  if(snap.data_room){ box.value = snap.data_room; box.title = mine; }
+  else if(snap.suggested_data_room){ box.value = snap.suggested_data_room; box.title = offered; }
+  else if(box.title === mine || box.title === offered){ box.value = ""; box.title = ""; }
 }
 
 function incoherenceBanner(){

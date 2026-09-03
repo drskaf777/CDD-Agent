@@ -165,6 +165,58 @@ class DataRoomConflict(RuntimeError):
     """Raised when a second, different data room would be added to an engagement."""
 
 
+class DataRoomSharedAcrossTargets(DataRoomConflict):
+    """Raised when one folder is already bound to a different company engagement."""
+
+
+def default_data_room(engagement_id: str, *, create: bool = True) -> Path:
+    """The folder this engagement owns, unless it is deliberately pointed elsewhere.
+
+    Isolation should be what happens when nobody thinks about it. Leaving the path
+    blank made the demo data room the nearest thing to hand, which is how another
+    company documents got one click away from every engagement.
+    """
+    from cdd_agent.config import get_settings
+
+    room = get_settings().engagements_dir / _safe_id(engagement_id) / "data_room"
+    if create:
+        room.mkdir(parents=True, exist_ok=True)
+    return room
+
+
+def _safe_id(engagement_id: str) -> str:
+    """One path component, whatever the engagement id happens to be.
+
+    Ids come from the user. Runs of dots are collapsed so the result can never read as
+    a parent reference, and the caller asserts the folder lands under the engagements
+    directory regardless.
+    """
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", engagement_id)
+    slug = re.sub(r"\.{2,}", ".", slug).strip(".-")
+    return slug or "engagement"
+
+
+def _target_of(engagement_id: str, store: Any) -> str:
+    from cdd_agent.state.store import Collection
+
+    profile = store.get(engagement_id, Collection.DEAL_PROFILE, "current") or {}
+    return str((profile.get("target") or {}).get("legal_name") or "").strip()
+
+
+def _bound_elsewhere(engagement_id: str, resolved: str, store: Any) -> list[tuple[str, str]]:
+    """Engagements already using this folder, with the target each one is about."""
+    from cdd_agent.state.store import Collection
+
+    out: list[tuple[str, str]] = []
+    for other in store.engagements():
+        if other == engagement_id:
+            continue
+        record = store.get(other, Collection.METRICS, "ingestion") or {}
+        if str(record.get("data_room") or "") == resolved:
+            out.append((other, _target_of(other, store)))
+    return out
+
+
 def _recorded_data_room(engagement_id: str, store: Optional[Any] = None) -> str:
     from cdd_agent.state.store import Collection, StateStore
 
@@ -175,18 +227,30 @@ def _recorded_data_room(engagement_id: str, store: Optional[Any] = None) -> str:
 
 def check_data_room(engagement_id: str, directory: Path | str, *,
                     store: Optional[Any] = None, force: bool = False) -> str:
-    """Refuse a second, different data room for one engagement.
+    """Refuse a data room that would blend two companies.
 
-    Ingesting another folder into an engagement is nearly always a misclick, and it is
-    silent: the documents join the engagement index, the parsed tables overwrite, and
-    the computed exhibits are rebuilt from another company numbers under this
-    company name. It happened - a customer schedule from the demo data room was
-    rendered as a real target concentration risk.
+    Two rules, and they are different failures.
+
+    A second, *different* folder for one engagement is nearly always a misclick, and
+    it is silent: the documents join the engagement index, the parsed tables
+    overwrite, and the computed exhibits are rebuilt from another company numbers
+    under this company name. It happened - a customer schedule from the demo data
+    room was rendered as a real target concentration risk.
+
+    One folder bound to two engagements is *not* automatically wrong. The same target
+    is routinely diligenced under more than one structure, and those engagements
+    should read one set of documents rather than drifting copies of it. What is wrong
+    is sharing a folder across engagements about different companies, which is the
+    same contamination arriving from the other direction.
 
     The check lives here rather than in the web layer because it was in the web layer
     first, and the command line walked straight past it.
     """
+    from cdd_agent.state.store import StateStore
+
+    store = store or StateStore()
     resolved = str(Path(directory).resolve())
+
     prior = _recorded_data_room(engagement_id, store)
     if prior and prior != resolved and not force:
         raise DataRoomConflict(
@@ -195,6 +259,18 @@ def check_data_room(engagement_id: str, directory: Path | str, *,
             f"overwrite the parsed tables the computed exhibits are built from. Use a "
             f"new engagement, or pass force to replace the data room deliberately."
         )
+
+    mine = _target_of(engagement_id, store)
+    if mine and not force:
+        for other, theirs in _bound_elsewhere(engagement_id, resolved, store):
+            if theirs and theirs.casefold() != mine.casefold():
+                raise DataRoomSharedAcrossTargets(
+                    f"{resolved} is the data room for {other}, which is about "
+                    f"{theirs}. This engagement is about {mine}. Sharing a folder "
+                    f"between engagements on the same target is fine; sharing it "
+                    f"across two companies puts one client documents into the other "
+                    f"work product. Give this engagement its own data room."
+                )
     return resolved
 
 
