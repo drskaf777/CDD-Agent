@@ -386,6 +386,46 @@ to be shown as diligence. The test suite runs entirely in this mode.
 pytest
 ```
 
+## Engagement isolation
+
+The data room arrives under an NDA, and on a listed target it is material non-public
+information. One client figure appearing in another client work product is a breach
+whether or not anyone notices, so the boundaries are enforced in code rather than by
+convention.
+
+| Channel | How it is held |
+| --- | --- |
+| Data-room index | One Chroma collection per engagement, so a mistaken `where` clause cannot leak documents between deals. |
+| State store | Every artifact records the engagement it belongs to, and a write whose stamp disagrees with the key is refused. |
+| Structured tables | Checked against what the engagement actually ingested; foreign tables surface as an incoherence. |
+| Evidence matrix | Accumulates across Phase-3 loops, so items citing documents the engagement no longer holds are flagged for clearing. |
+| Ingestion | A second, different data room into one engagement returns 409. Blending two companies has to be deliberate. |
+| Demo fixtures | Never pre-filled. The demo profile and demo data room are offered, never applied. |
+| Knowledge Base | Written only from static method documents. No engagement content ever enters it. |
+| Corrections | The one channel that crosses by design - see below. |
+
+Corrections exist so a correction on one deal recalibrates the next in the same
+sub-sector (Checkpoint 2.1). But `from_value` and `to_value` are whatever a reviewer
+typed while reading a data room, which on a live deal is a retention rate or a
+customer name. So a correction crosses only when someone marks it `shareable`, and it
+crosses stripped of its values, its note and its source engagement. What travels is
+that this field has been got wrong before in this sub-sector, which is the part that
+should change how the next deal is scoped.
+
+Rendering for the prompt lives on the correction itself, so a call site cannot
+reassemble the fields into a sentence containing values that were deliberately
+dropped. That is not hypothetical either: formatting at the call site is exactly how
+they reached the prompt before.
+
+### When artifacts disagree
+
+Artifacts are each built from the one before them, and nothing re-checked the chain,
+so replacing an upstream artifact left the downstream ones intact, plausible and
+about a different company. Every count stayed right. `guardrails/coherence.py`
+compares the values one artifact copied from another at the moment it was built - a
+divergence can only mean something upstream was replaced - and the interface shows it
+as a banner rather than leaving the numbers to look correct.
+
 ## Where the human is required
 
 Five triggers, deliberately narrow — over-triggering produces a reviewer who

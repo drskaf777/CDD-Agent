@@ -64,26 +64,49 @@ def test_full_teardown_clears_the_trail_too(store):
 
 
 def test_corrections_are_recalled_across_engagements(store):
+    """Checkpoint 2.1 recalibration, without carrying the deal it came from.
+
+    A correction crosses engagements only when someone marks it shareable, and it
+    crosses stripped of values, note and source. What survives is the signal that
+    this field has been got wrong before in this sub-sector - which is what should
+    change how the next deal is scoped. The note used to cross intact, and a note is
+    free text a reviewer typed while looking at a client data room.
+    """
     from cdd_agent.state.memory import Correction, LongTermMemory
 
-    LongTermMemory(store, "deal-1").record_correction(
-        Correction(
-            engagement_id="deal-1",
-            sub_sector="B2B cybersecurity SaaS",
-            artifact="data_request",
-            field_path="DR-012.tier",
-            from_value="2",
-            to_value="1",
-            note="ARR waterfall is always Tier 1 in this sub-sector",
-            at=_dt.datetime.now(_dt.timezone.utc),
-        ),
-        agent="operator",
-    )
+    def record(shareable: bool) -> None:
+        LongTermMemory(store, "deal-1").record_correction(
+            Correction(
+                engagement_id="deal-1",
+                sub_sector="B2B cybersecurity SaaS",
+                artifact="data_request",
+                field_path="DR-012.tier",
+                from_value="2",
+                to_value="1",
+                note="ARR waterfall is always Tier 1 in this sub-sector",
+                at=_dt.datetime.now(_dt.timezone.utc),
+                shareable=shareable,
+            ),
+            agent="operator",
+        )
+
+    record(shareable=False)
+    assert LongTermMemory(store, "deal-2").corrections_for_sub_sector(
+        "b2b cybersecurity saas") == [], "unmarked corrections stay in their engagement"
+
+    record(shareable=True)
     recalled = LongTermMemory(store, "deal-2").corrections_for_sub_sector(
         "b2b cybersecurity saas"
     )
     assert len(recalled) == 1
-    assert "Tier 1" in recalled[0].note
+    assert recalled[0].field_path == "DR-012.tier"
+    assert recalled[0].note == "" and recalled[0].to_value == ""
+    assert "Values withheld" in recalled[0].render_for_prompt()
+
+    # The originating engagement keeps the whole thing.
+    own = LongTermMemory(store, "deal-1").corrections_for_sub_sector(
+        "b2b cybersecurity saas")
+    assert "Tier 1" in own[0].note
 
 
 # ---------------------------------------------------------- evidence matrix

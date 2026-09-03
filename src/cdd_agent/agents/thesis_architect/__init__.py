@@ -58,8 +58,11 @@ class ThesisArchitect(Agent):
                 "Phase 1 blocked - intake is incomplete: " + "; ".join(missing)
             )
 
+        # Rendering belongs to the Correction, which knows whether it was redacted.
+        # Formatting the fields here is how another client figures reach this prompt
+        # without anyone deciding that they should.
         corrections = [
-            f"{c.artifact}.{c.field_path}: {c.from_value} -> {c.to_value}. {c.note}".strip()
+            c.render_for_prompt()
             for c in self.context.memory.corrections_for_sub_sector(profile.sector.sub_sector)
         ]
 

@@ -16,7 +16,7 @@ import datetime as _dt
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cdd_agent.schemas.common import Citation
 from cdd_agent.schemas.data_request import DataRequestChecklist
@@ -56,7 +56,16 @@ class Correction(BaseModel):
 
     Checkpoint 2.1: a correction to a risk rating or a mis-prioritized data request
     should recalibrate how the agent scopes the next deal in the same sub-sector.
-    Stored with the sub-sector so it can be recalled as context, not replayed blindly.
+
+    The recalibration must not carry the deal it came from. `from_value` and
+    `to_value` are whatever the reviewer typed, which on a live engagement is a client
+    figure - a retention rate, a concentration percentage, a customer name. Replaying
+    those into another engagement prompt puts one client confidential data into
+    another client work product, which is an NDA breach whether or not anyone notices.
+
+    So cross-engagement recall is opt-in and value-free: `shareable` has to be set
+    deliberately, and even then only the shape of the correction travels. Within its
+    own engagement a correction is returned intact.
     """
 
     engagement_id: str
@@ -67,6 +76,36 @@ class Correction(BaseModel):
     to_value: str
     note: str = ""
     at: _dt.datetime
+    shareable: bool = Field(
+        default=False,
+        description="Cleared for reuse on other engagements. Off by default: the "
+        "person recording the correction is the only one who can say it carries no "
+        "client-confidential detail.",
+    )
+
+    def redacted(self) -> "Correction":
+        """The same correction with everything deal-specific removed."""
+        return self.model_copy(update={
+            "engagement_id": "",
+            "from_value": "",
+            "to_value": "",
+            "note": "",
+        })
+
+    def render_for_prompt(self) -> str:
+        """How a correction is allowed to appear in a prompt.
+
+        Rendering lives here rather than at the call site so that a redacted
+        correction cannot be reassembled into a sentence containing values that were
+        deliberately dropped.
+        """
+        if not self.from_value and not self.to_value:
+            return (
+                f"{self.artifact}.{self.field_path}: corrected on a prior engagement "
+                f"in this sub-sector. Values withheld - treat as a signal that this "
+                f"field is commonly got wrong, not as a number."
+            )
+        return f"{self.artifact}.{self.field_path}: {self.from_value} -> {self.to_value}. {self.note}".strip()
 
 
 class LongTermMemory:
@@ -172,10 +211,21 @@ class LongTermMemory:
         )
 
     def corrections_for_sub_sector(self, sub_sector: str) -> list[Correction]:
-        """Recall prior corrections in the same sub-sector, across all engagements."""
+        """Prior corrections in the same sub-sector.
+
+        This engagement own corrections come back intact. Corrections belonging to
+        other engagements come back only if someone marked them shareable, and always
+        redacted - the values a reviewer typed on another deal are that client data,
+        and the recalibration this exists for does not need them.
+        """
         out: list[Correction] = []
         for eng in self.store.engagements():
             for _, doc in self.store.list(eng, Collection.CORRECTION):
-                if doc.get("sub_sector", "").lower() == sub_sector.lower():
-                    out.append(Correction.model_validate(doc))
+                if doc.get("sub_sector", "").lower() != sub_sector.lower():
+                    continue
+                correction = Correction.model_validate(doc)
+                if correction.engagement_id == self.engagement_id:
+                    out.append(correction)
+                elif correction.shareable:
+                    out.append(correction.redacted())
         return sorted(out, key=lambda c: c.at)
