@@ -32,7 +32,8 @@ from cdd_agent.guardrails.escalation import record as record_escalations
 from cdd_agent.knowledge.intake_questions import INTAKE_PROTOCOL
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.orchestration.controller import Controller
-from cdd_agent.retrieval.ingestion import ingest_directory
+from cdd_agent.guardrails.coherence import EngagementIncoherent
+from cdd_agent.retrieval.ingestion import DataRoomConflict, ingest_directory
 from cdd_agent.schemas.common import Tier
 from cdd_agent.state.store import Collection, StateStore
 from cdd_agent.synthesis.render import write_markdown
@@ -69,6 +70,12 @@ def guarded():
         yield
     except AuthorizationError as exc:
         console.print(f"[red]Blocked by intake access constraints:[/red] {exc}")
+        raise typer.Exit(code=2) from None
+    except DataRoomConflict as exc:
+        console.print(f"[red]Refused - this would blend two data rooms:[/red] {exc}")
+        raise typer.Exit(code=2) from None
+    except EngagementIncoherent as exc:
+        console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=2) from None
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
@@ -203,8 +210,17 @@ def request(engagement: str) -> None:
 @app.command()
 def ingest(engagement: str, data_room: Path) -> None:
     """Phase 3 - classify, chunk, and index a data-room folder."""
-    report, tables = ingest_directory(engagement, data_room)
-    save_structured_tables(StateStore(), engagement, tables)
+    store = StateStore()
+    with guarded():
+        report, tables = ingest_directory(engagement, data_room, store=store)
+    save_structured_tables(store, engagement, tables)
+    # Record the source so a later ingestion, from here or from the interface, can
+    # see that it would be blending two data rooms.
+    store.put(engagement, Collection.METRICS, "ingestion",
+              {"summary": report.summary(), "unstructured": report.unstructured,
+               "structured": report.structured, "skipped": report.skipped,
+               "undated": report.undated, "data_room": report.data_room},
+              agent="Controller")
     console.print(report.summary())
     for entry in report.unstructured:
         console.print(f"  {entry['file']}: {entry['doc_type']}, tier {entry['tier']}, "

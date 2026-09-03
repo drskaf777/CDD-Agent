@@ -41,7 +41,7 @@ from cdd_agent.guardrails.escalation import (
 )
 from cdd_agent.knowledge.risk_taxonomy import applicable_categories
 from cdd_agent.retrieval.indexes import IndexVersionMismatch
-from cdd_agent.retrieval.ingestion import ingest_directory
+from cdd_agent.retrieval.ingestion import DataRoomConflict, ingest_directory
 from cdd_agent.schemas.common import ConfidenceTag, Tier
 from cdd_agent.schemas.deal_profile import DealProfile
 from cdd_agent.state.store import Collection, StateStore
@@ -311,26 +311,18 @@ def run_ingest(engagement: str, body: IngestBody) -> dict[str, Any]:
     # tables overwrite, and the computed exhibits are rebuilt from another company
     # numbers under this company name. That happened - a customer schedule from the
     # demo data room was rendered as a real target concentration risk.
-    previous = _store.get(engagement, Collection.METRICS, "ingestion") or {}
-    prior_path = previous.get("data_room")
-    resolved = str(directory.resolve())
-    if prior_path and prior_path != resolved and not body.force:
-        raise HTTPException(
-            409,
-            f"{engagement} was already ingested from {prior_path}. Ingesting "
-            f"{resolved} would add another company documents to the same index and "
-            f"overwrite the parsed tables that computed exhibits are built from. "
-            f"Use a new engagement, or resend with force=true to replace the data "
-            f"room deliberately.",
-        )
-    report, tables = ingest_directory(engagement, directory)
+    try:
+        report, tables = ingest_directory(engagement, directory, force=body.force,
+                                          store=_store)
+    except DataRoomConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
     _tables[engagement] = list(tables)
     save_structured_tables(_store, engagement, tables)
     _store.put(
         engagement, Collection.METRICS, "ingestion",
         {"summary": report.summary(), "unstructured": report.unstructured,
          "structured": report.structured, "skipped": report.skipped,
-         "undated": report.undated, "data_room": resolved},
+         "undated": report.undated, "data_room": report.data_room},
         agent="Controller",
     )
     return {

@@ -81,6 +81,9 @@ class IngestionReport:
     """The user-auditable index of what was ingested and how it was classified."""
 
     engagement_id: str
+    # Where this engagement documents came from. Recorded so a later ingestion can
+    # tell that it would be adding a second, different data room.
+    data_room: str = ""
     unstructured: list[dict[str, Any]] = field(default_factory=list)
     structured: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[dict[str, Any]] = field(default_factory=list)
@@ -158,18 +161,61 @@ def parse_structured(path: Path) -> Optional[StructuredTable]:
     return None
 
 
+class DataRoomConflict(RuntimeError):
+    """Raised when a second, different data room would be added to an engagement."""
+
+
+def _recorded_data_room(engagement_id: str, store: Optional[Any] = None) -> str:
+    from cdd_agent.state.store import Collection, StateStore
+
+    store = store or StateStore()
+    record = store.get(engagement_id, Collection.METRICS, "ingestion") or {}
+    return str(record.get("data_room") or "")
+
+
+def check_data_room(engagement_id: str, directory: Path | str, *,
+                    store: Optional[Any] = None, force: bool = False) -> str:
+    """Refuse a second, different data room for one engagement.
+
+    Ingesting another folder into an engagement is nearly always a misclick, and it is
+    silent: the documents join the engagement index, the parsed tables overwrite, and
+    the computed exhibits are rebuilt from another company numbers under this
+    company name. It happened - a customer schedule from the demo data room was
+    rendered as a real target concentration risk.
+
+    The check lives here rather than in the web layer because it was in the web layer
+    first, and the command line walked straight past it.
+    """
+    resolved = str(Path(directory).resolve())
+    prior = _recorded_data_room(engagement_id, store)
+    if prior and prior != resolved and not force:
+        raise DataRoomConflict(
+            f"{engagement_id} was already ingested from {prior}. Ingesting "
+            f"{resolved} would add another company documents to the same index and "
+            f"overwrite the parsed tables the computed exhibits are built from. Use a "
+            f"new engagement, or pass force to replace the data room deliberately."
+        )
+    return resolved
+
+
 def ingest_directory(
     engagement_id: str,
     directory: Path | str,
     *,
     index: Optional["DataRoomIndex"] = None,
+    force: bool = False,
+    store: Optional[Any] = None,
 ) -> tuple[IngestionReport, list[StructuredTable]]:
     """Ingest a data-room folder into the engagement-scoped index."""
     from cdd_agent.retrieval.indexes import DataRoomIndex
 
     directory = Path(directory)
+    # Every caller passes through here, so the boundary holds for the CLI, the API and
+    # the Controller alike.
+    resolved = check_data_room(engagement_id, directory, store=store, force=force)
     index = index or DataRoomIndex(engagement_id)
     report = IngestionReport(engagement_id=engagement_id)
+    report.data_room = resolved
     tables: list[StructuredTable] = []
 
     for path in sorted(p for p in directory.rglob("*") if p.is_file()):

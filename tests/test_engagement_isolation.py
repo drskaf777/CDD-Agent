@@ -90,3 +90,33 @@ def test_the_thesis_prompt_carries_no_other_client_figures(isolated_settings, co
     prompt_lines = " ".join(c.render_for_prompt() for c in recalled)
     for leaked in ("124%", "118% NRR", "project-sentinel", "step down at renewal"):
         assert leaked not in prompt_lines, f"{leaked!r} crossed the boundary"
+
+
+def test_a_second_data_room_is_refused_from_any_caller(isolated_settings, tmp_path):
+    """The guard lived in the web layer first, and the command line walked straight
+    past it - so a purge-and-reingest from the CLI silently re-armed the contamination.
+    It belongs where every caller passes through.
+    """
+    from cdd_agent.retrieval.ingestion import (
+        DataRoomConflict,
+        check_data_room,
+        ingest_directory,
+    )
+
+    store = StateStore()
+    first = tmp_path / "target-a"
+    first.mkdir()
+    (first / "Board_Deck_2026-01-01.txt").write_text("Revenue grew 20%. " * 40,
+                                                    encoding="utf-8")
+    report, _ = ingest_directory("deal-1", first, store=store)
+    store.put("deal-1", Collection.METRICS, "ingestion",
+              {"data_room": report.data_room}, agent="test")
+
+    second = tmp_path / "target-b"
+    second.mkdir()
+    with pytest.raises(DataRoomConflict, match="already ingested"):
+        check_data_room("deal-1", second, store=store)
+    # Deliberate replacement stays possible; it just cannot happen by accident.
+    assert check_data_room("deal-1", second, store=store, force=True)
+    # And re-ingesting the same folder is not a conflict.
+    assert check_data_room("deal-1", first, store=store)
