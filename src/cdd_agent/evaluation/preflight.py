@@ -67,13 +67,13 @@ def _check_credentials(pf: Preflight) -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     present = bool(key.strip())
     # Never print the key. Its length and prefix are enough to spot a truncated paste.
-    shape = f"set, {len(key)} chars, starts {key[:7]}…" if present else "not set"
+    shape = f"set, {len(key)} chars, starts {key[:7]}..." if present else "not set"
     pf.add(Check(
         "ANTHROPIC_API_KEY",
         present,
         shape,
         fix=(
-            'PowerShell: $env:ANTHROPIC_API_KEY="sk-ant-…"  (this session only), or '
+            'PowerShell: $env:ANTHROPIC_API_KEY="sk-ant-..."  (this session only), or '
             "add it to .env. CrewAI's provider reads this variable directly and will "
             "not use an `ant auth login` profile, so the variable is required even if "
             "the CLI is already authenticated."
@@ -84,7 +84,7 @@ def _check_credentials(pf: Preflight) -> bool:
 
 def _check_langchain(pf: Preflight, live_call: bool) -> None:
     try:
-        from cdd_agent.llm.models import get_chat_model
+        from cdd_agent.llm.models import response_text, get_chat_model
 
         model = get_chat_model()
     except Exception as exc:
@@ -101,8 +101,10 @@ def _check_langchain(pf: Preflight, live_call: bool) -> None:
         # One tiny call. This is the only check that proves the credential actually
         # works rather than merely being present.
         reply = model.invoke("Reply with the single word: ready")
-        text = getattr(reply, "content", "")
-        text = text if isinstance(text, str) else str(text)
+        # A thinking-enabled model returns a list of blocks; stringifying it printed
+        # a raw thinking signature here instead of the answer, which made a passing
+        # check look broken.
+        text = response_text(reply)
         pf.add(Check("live model call", True, f"answered {text.strip()[:40]!r}"))
     except Exception as exc:
         message = str(exc)

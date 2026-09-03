@@ -99,3 +99,28 @@ def structured(model: Any, schema: type) -> Any:
     if hasattr(model, "with_structured_output"):
         return model.with_structured_output(schema)
     raise TypeError(f"{type(model).__name__} does not support structured output")
+
+
+def response_text(response: object) -> str:
+    """Pull the assistant text out of a chat response.
+
+    On a thinking-enabled model the content is a *list* of blocks - thinking first,
+    then text - not a string. Stringifying the list puts raw thinking blocks, including
+    their base64 signatures, wherever the text was meant to go: onto slide headlines in
+    one place, into the preflight report in another. Only text blocks are ever wanted,
+    so the unwrapping lives here rather than being rediscovered at each call site.
+    """
+    content = getattr(response, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+    return ""
