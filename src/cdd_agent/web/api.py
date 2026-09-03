@@ -30,6 +30,7 @@ from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.authorization import AgentRole
+from cdd_agent.agents.base import load_structured_tables
 from cdd_agent.guardrails.coherence import check_engagement
 from cdd_agent.guardrails.escalation import (
     check_phase1,
@@ -126,6 +127,8 @@ class SelectBody(BaseModel):
 
 class IngestBody(BaseModel):
     path: str
+    # Explicit opt-in to replacing an engagement data room.
+    force: bool = False
 
 
 # ------------------------------------------------------------------------ pages
@@ -174,9 +177,17 @@ def snapshot(engagement: str) -> dict[str, Any]:
     # replaced upstream artifact leaves the rest intact, plausible and about another
     # company. This is the one read the whole interface renders from, so the
     # disagreement surfaces everywhere at once.
+    ingestion = _store.get(engagement, Collection.METRICS, "ingestion") or {}
+    ingested_files = [
+        d.get("file") for group in ("unstructured", "structured")
+        for d in (ingestion.get(group) or []) if isinstance(d, dict)
+    ]
+    tables = load_structured_tables(_store, engagement)
     incoherence = check_engagement(
         engagement, profile=profile, tree=tree, deck=deck, matrix=matrix,
         register=register,
+        table_files=[t.source_file for t in tables],
+        ingested_files=ingested_files if ingestion else None,
     )
     return {
         "incoherence": [i.to_dict() for i in incoherence],
@@ -295,6 +306,23 @@ def run_ingest(engagement: str, body: IngestBody) -> dict[str, Any]:
     directory = Path(body.path)
     if not directory.is_dir():
         raise HTTPException(400, f"not a directory: {directory}")
+    # Ingesting a second, different data room into an engagement is nearly always a
+    # misclick, and it is silent: the documents land in the engagement index, the
+    # tables overwrite, and the computed exhibits are rebuilt from another company
+    # numbers under this company name. That happened - a customer schedule from the
+    # demo data room was rendered as a real target concentration risk.
+    previous = _store.get(engagement, Collection.METRICS, "ingestion") or {}
+    prior_path = previous.get("data_room")
+    resolved = str(directory.resolve())
+    if prior_path and prior_path != resolved and not body.force:
+        raise HTTPException(
+            409,
+            f"{engagement} was already ingested from {prior_path}. Ingesting "
+            f"{resolved} would add another company documents to the same index and "
+            f"overwrite the parsed tables that computed exhibits are built from. "
+            f"Use a new engagement, or resend with force=true to replace the data "
+            f"room deliberately.",
+        )
     report, tables = ingest_directory(engagement, directory)
     _tables[engagement] = list(tables)
     save_structured_tables(_store, engagement, tables)
@@ -302,7 +330,7 @@ def run_ingest(engagement: str, body: IngestBody) -> dict[str, Any]:
         engagement, Collection.METRICS, "ingestion",
         {"summary": report.summary(), "unstructured": report.unstructured,
          "structured": report.structured, "skipped": report.skipped,
-         "undated": report.undated},
+         "undated": report.undated, "data_room": resolved},
         agent="Controller",
     )
     return {

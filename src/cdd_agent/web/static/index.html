@@ -423,7 +423,11 @@ async function boot(){
   $("modeBadge").title = info.offline
     ? "Deterministic paths, no model calls. Exercises the machinery; carries no judgment."
     : "Model-backed run";
-  if(info.demo_data_room && !$("dataRoom").value) $("dataRoom").value = info.demo_data_room;
+  // Show the demo path, never pre-fill it. Filling the box put the demo data room in
+  // front of every engagement, and one click ingested another company customer file
+  // into a real one - which then appeared in the deck as computed findings. A
+  // convenience that is one click from contaminating an engagement is not one.
+  if(info.demo_data_room) $("dataRoom").placeholder = info.demo_data_room;
   const sel = $("engSelect");
   sel.innerHTML = "";
   (info.engagements || []).forEach(e => {

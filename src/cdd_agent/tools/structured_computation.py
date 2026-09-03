@@ -106,10 +106,42 @@ class StructuredComputationTool:
             citation=self._cite(table, [column], f"{how} aggregate"),
         )
 
+    def total_company_revenue(self) -> float | None:
+        """Total annual revenue for the target, if any parsed table states it.
+
+        Deliberately narrow: it reads a stated total, and never sums a customer file
+        to manufacture one. A customer schedule holds the accounts management chose
+        to list, so summing it produces a number that looks like company revenue and
+        is not - which is exactly the error this exists to prevent.
+        """
+        wanted = ("total_revenue", "total_annual_revenue", "company_revenue",
+                  "annual_revenue")
+        for name in self.available():
+            df = self.frame(name)
+            for column in df.columns:
+                if str(column).strip().lower().replace(" ", "_") in wanted:
+                    values = _numeric(df[column]).dropna()
+                    if len(values):
+                        return float(values.max())
+        return None
+
     def customer_concentration(
-        self, table: str, customer_column: str, revenue_column: str, top_n: Sequence[int] = (5, 10, 20)
+        self, table: str, customer_column: str, revenue_column: str,
+        top_n: Sequence[int] = (5, 10, 20), total_revenue: float | None = None
     ) -> ComputationResult:
-        """Top-N revenue concentration - the first screen in the risk taxonomy."""
+        """Top-N revenue concentration - the first screen in the risk taxonomy.
+
+        The denominator is total company revenue, and it has to be supplied. Dividing
+        by the sum of the customers listed instead is the natural shortcut and it is
+        wrong: a file holding the top twenty accounts then reports "top 20 = 100% of
+        revenue", which is true of the file and false of the company, and it
+        understates concentration everywhere else on the chart. A top-5 block worth
+        62% of the listed twenty might be 8% of the business or 45% of it, and the
+        difference is the entire finding.
+
+        Without a company total this raises rather than guessing, so the exhibit
+        becomes a data request naming what it needs.
+        """
         df = self.frame(table)
         _require(df, [customer_column, revenue_column], table)
         df = df.copy()
@@ -117,9 +149,24 @@ class StructuredComputationTool:
         grouped = (
             df.groupby(customer_column)[revenue_column].sum().sort_values(ascending=False)
         )
-        total = float(grouped.sum())
-        if total <= 0:
+        listed = float(grouped.sum())
+        if listed <= 0:
             raise ComputationError(f"total {revenue_column} in {table!r} is not positive")
+        if total_revenue is None:
+            raise ComputationError(
+                f"{table!r} lists {len(grouped)} customers totalling {listed:,.0f}, "
+                "but concentration is a share of total company revenue and no company "
+                "total was supplied. Provide total annual revenue for the period."
+            )
+        total = float(total_revenue)
+        if total <= 0:
+            raise ComputationError("total company revenue must be positive")
+        if listed - total > max(1.0, total * 0.001):
+            raise ComputationError(
+                f"customers in {table!r} total {listed:,.0f}, which exceeds the stated "
+                f"company revenue of {total:,.0f}. One of the two is wrong, and "
+                "guessing which would corrupt every share below it."
+            )
         rows = [
             {
                 "bucket": f"top {n}",
@@ -133,13 +180,16 @@ class StructuredComputationTool:
         ]
         top5 = float(grouped.head(5).sum()) if len(grouped) >= 5 else None
         top5_share = (top5 / total) if top5 is not None else None
+        coverage = listed / total
         return ComputationResult(
             name="customer concentration",
             value=top5_share,
             table=rows,
             columns=["bucket", "revenue", "share_of_total"],
             citation=self._cite(table, [customer_column, revenue_column], "concentration schedule"),
-            note=f"{len(grouped)} customers, total {total:,.0f}",
+            note=(f"{len(grouped)} customers listed, totalling {listed:,.0f} against "
+                  f"total company revenue of {total:,.0f} ({coverage:.1%} of revenue). "
+                  "Shares are of company revenue, not of the customers listed."),
         )
 
     def herfindahl(

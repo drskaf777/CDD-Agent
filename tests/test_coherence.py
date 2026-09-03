@@ -144,3 +144,49 @@ def test_the_report_shows_where_the_two_actually_differ():
     detail = found[0].detail
     assert "they agree for" in detail
     assert "installed base" in detail and "different customer set" in detail
+
+
+def test_tables_from_another_data_room_are_caught():
+    """Reported from a live deck: a customer schedule belonging to another
+    engagement was computed into it and rendered as this company concentration."""
+    found = check_engagement(
+        "project-kanpur", profile=profile(),
+        table_files=["customer_revenue_2026-06-30.csv"],
+        ingested_files=["FRSH_10-K_FY2025.txt", "FRSH_10-Q_2026-Q2.txt"])
+    assert [f.artifact for f in found] == ["structured tables"]
+    assert "never ingested" in found[0].detail
+
+
+def test_evidence_surviving_a_data_room_correction_is_caught():
+    """Evidence accumulates across Phase-3 loops, so re-ingesting a corrected data
+    room does not retire what the previous one produced."""
+    from cdd_agent.schemas.common import Citation, ConfidenceTag, SourceKind
+    from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
+
+    matrix = EvidenceMatrix(engagement_id="project-kanpur", created_by="t")
+    matrix.add(EvidenceItem(
+        id="EV-1", engagement_id="project-kanpur", created_by="Analyst",
+        hypothesis_id="H1", claim="stale", tag=ConfidenceTag.PARTIALLY_CONFIRMED,
+        source_kind=SourceKind.DATA_ROOM,
+        citations=[Citation(source_kind=SourceKind.DATA_ROOM,
+                            source_file="Board_Deck_2026-05-10.txt", locator="p1")]))
+    found = check_engagement("project-kanpur", matrix=matrix,
+                             ingested_files=["FRSH_10-K_FY2025.txt"])
+    assert [f.artifact for f in found] == ["evidence matrix"]
+    assert "Clear the evidence matrix" in found[0].remedy
+
+
+def test_knowledge_base_citations_are_not_treated_as_stale():
+    """The Knowledge Base is cross-engagement and never appears in an ingestion."""
+    from cdd_agent.schemas.common import Citation, ConfidenceTag, SourceKind
+    from cdd_agent.schemas.evidence import EvidenceItem, EvidenceMatrix
+
+    matrix = EvidenceMatrix(engagement_id="project-kanpur", created_by="t")
+    matrix.add(EvidenceItem(
+        id="EV-1", engagement_id="project-kanpur", created_by="Analyst",
+        hypothesis_id="H1", claim="reference", tag=ConfidenceTag.PARTIALLY_CONFIRMED,
+        source_kind=SourceKind.KNOWLEDGE_BASE,
+        citations=[Citation(source_kind=SourceKind.KNOWLEDGE_BASE,
+                            source_file="kb_subsector_saas.txt", locator="p1")]))
+    assert check_engagement("project-kanpur", matrix=matrix,
+                            ingested_files=["FRSH_10-K_FY2025.txt"]) == []

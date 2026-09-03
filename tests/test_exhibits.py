@@ -79,19 +79,33 @@ def test_an_exhibit_with_data_but_no_citation_is_still_excluded():
     assert not is_presentable(unsourced)
 
 
-def test_concentration_is_computed_from_real_numbers(tree):
+def test_concentration_is_computed_against_company_revenue(tree):
     rows = [{"customer": f"C{i}", "arr": str(1000 - i * 50)} for i in range(20)]
-    table = StructuredTable(source_file="customer_revenue.csv", name="customer_revenue",
-                            columns=["customer", "arr"], rows=rows)
-    exhibits = build_for_section(4, _ctx(tree, tables=[table]))
+    customers = StructuredTable(source_file="customer_revenue.csv",
+                                name="customer_revenue",
+                                columns=["customer", "arr"], rows=rows)
+    listed = sum(1000 - i * 50 for i in range(20))
+    company = listed * 4
+    totals = StructuredTable(source_file="revenue_summary.csv", name="revenue_summary",
+                             columns=["total_revenue"],
+                             rows=[{"total_revenue": str(company)}])
+    exhibits = build_for_section(4, _ctx(tree, tables=[customers, totals]))
     conc = next(e for e in exhibits if "concentration" in e.title.lower())
     assert conc.status is ExhibitStatus.COMPUTED
-    assert conc.series and conc.series[0].values
-    total = sum(1000 - i * 50 for i in range(20))
     top5 = sum(1000 - i * 50 for i in range(5))
-    assert conc.series[0].values[0] == pytest.approx(top5 / total, rel=1e-6)
+    assert conc.series[0].values[0] == pytest.approx(top5 / company, rel=1e-6)
     # A computed exhibit cites the file and columns it was computed from.
     assert conc.citations and conc.citations[0].source_file == "customer_revenue.csv"
+
+
+def test_concentration_is_omitted_when_company_revenue_is_unknown(tree):
+    """A customer schedule alone cannot say what share of the company it is."""
+    rows = [{"customer": f"C{i}", "arr": str(1000 - i * 50)} for i in range(20)]
+    customers = StructuredTable(source_file="customer_revenue.csv",
+                                name="customer_revenue",
+                                columns=["customer", "arr"], rows=rows)
+    built = build_for_section(4, _ctx(tree, tables=[customers]))
+    assert not any("concentration" in e.title.lower() for e in built)
 
 
 def test_market_share_reports_hhi_when_competitor_data_exists(tree):

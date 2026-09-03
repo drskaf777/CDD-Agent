@@ -71,6 +71,8 @@ def check_engagement(
     deck: Optional[Any] = None,
     matrix: Optional[Any] = None,
     register: Optional[Any] = None,
+    table_files: Optional[list[str]] = None,
+    ingested_files: Optional[list[str]] = None,
 ) -> list[Incoherence]:
     """Every way the artifacts can disagree about the target, in one pass."""
     found: list[Incoherence] = []
@@ -122,6 +124,61 @@ def check_engagement(
                 artifact=name,
                 detail=f"belongs to engagement {owner!r}, not {engagement_id!r}.",
                 remedy="It was written into the wrong engagement; do not rely on it.",
+            ))
+    # 4. Structured tables are not stamped with an engagement, so nothing above
+    #    catches them being loaded from the wrong folder. What does catch it is the
+    #    filenames: a table parsed for this engagement should have arrived with its
+    #    data room. This fired for real - a customer schedule from another engagement
+    #    was computed into a deck and rendered as that company concentration risk.
+    if ingested_files is not None and table_files:
+        strays = sorted(set(table_files) - set(ingested_files))
+        if strays:
+            found.append(Incoherence(
+                artifact="structured tables",
+                detail=(
+                    f"include {', '.join(strays[:4])}, which "
+                    f"{'was' if len(strays) == 1 else 'were'} never ingested for "
+                    f"{engagement_id!r}. Any computed exhibit built on "
+                    f"{'it' if len(strays) == 1 else 'them'} describes another "
+                    f"engagement data."
+                ),
+                remedy=(
+                    "Re-ingest this engagement own data room and re-run Phase 3, so "
+                    "the computed exhibits are rebuilt or correctly dropped."
+                ),
+            ))
+    # 5. Evidence accumulates across Phase-3 loops by design, so re-ingesting a
+    #    corrected data room does not retire what the previous one produced. Items
+    #    citing a document this engagement no longer holds are the residue, and they
+    #    are indistinguishable from good evidence once they reach the deck - one item
+    #    was found citing two companies documents at once.
+    if ingested_files is not None and matrix is not None:
+        held = set(ingested_files)
+        stale: set[str] = set()
+        for item in getattr(matrix, "items", []):
+            for citation in getattr(item, "citations", []):
+                source = getattr(citation, "source_file", "")
+                kind = getattr(citation, "source_kind", None)
+                # Knowledge-Base references are cross-engagement by design and never
+                # appear in a data-room ingestion.
+                if kind is not None and getattr(kind, "is_public_record", False) \
+                        and source.startswith("kb_"):
+                    continue
+                if source and source not in held and not source.startswith("kb_") \
+                        and "intake" not in source.lower():
+                    stale.add(source)
+        if stale:
+            found.append(Incoherence(
+                artifact="evidence matrix",
+                detail=(
+                    f"cites {', '.join(sorted(stale)[:4])}, which this engagement has "
+                    f"not ingested. Evidence accumulates across loops, so these "
+                    f"survived a data-room correction."
+                ),
+                remedy=(
+                    "Clear the evidence matrix and re-run Phase 3 so every rating is "
+                    "grounded in documents this engagement actually holds."
+                ),
             ))
     return found
 

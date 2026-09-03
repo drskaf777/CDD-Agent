@@ -61,13 +61,46 @@ def test_contraction_stored_as_a_negative_is_not_double_counted():
     assert result.table[0]["closing"] == 1100
 
 
-def test_customer_concentration_computes_top_n_shares():
+def test_customer_concentration_is_a_share_of_company_revenue():
+    """Reported from a live deck: "top 20 = 100% of revenue".
+
+    True of the customer file, false of the company. The denominator has to be total
+    company revenue, or the top-5 figure understates concentration by however much
+    revenue sits outside the listed accounts.
+    """
     tool = StructuredComputationTool([_revenue_table()])
-    result = tool.customer_concentration("rev", "customer", "arr")
-    total = sum(1000 - i * 50 for i in range(20))
+    listed = sum(1000 - i * 50 for i in range(20))
     top5 = sum(1000 - i * 50 for i in range(5))
-    assert result.value == pytest.approx(top5 / total, rel=1e-6)
-    assert [r["bucket"] for r in result.table] == ["top 5", "top 10", "top 20"]
+    company = listed * 4  # the file lists a quarter of the business
+
+    result = tool.customer_concentration("rev", "customer", "arr",
+                                         total_revenue=company)
+    assert result.value == pytest.approx(top5 / company, rel=1e-6)
+    shares = {r["bucket"]: r["share_of_total"] for r in result.table}
+    assert shares["top 20"] == pytest.approx(listed / company, rel=1e-6)
+    assert shares["top 20"] < 0.30, "top 20 must not read as 100% of the company"
+    assert "of company revenue" in result.note
+
+
+def test_concentration_refuses_to_guess_the_denominator():
+    """Summing the customer file to get company revenue is the tempting shortcut,
+    and it is the bug. Without a stated total this must raise, so the exhibit
+    becomes a request rather than a chart against the wrong base."""
+    tool = StructuredComputationTool([_revenue_table()])
+    with pytest.raises(ComputationError, match="total company revenue"):
+        tool.customer_concentration("rev", "customer", "arr")
+
+
+def test_customers_exceeding_company_revenue_is_refused():
+    tool = StructuredComputationTool([_revenue_table()])
+    with pytest.raises(ComputationError, match="exceeds the stated"):
+        tool.customer_concentration("rev", "customer", "arr", total_revenue=100.0)
+
+
+def test_total_revenue_is_read_not_summed():
+    """It must never manufacture a total by adding up the customer schedule."""
+    tool = StructuredComputationTool([_revenue_table()])
+    assert tool.total_company_revenue() is None
 
 
 def test_cohort_retention_is_relative_to_each_cohort_base():

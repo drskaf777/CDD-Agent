@@ -505,10 +505,14 @@ def concentration(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     for table in ctx.computation.available():
         if "customer" not in table and "revenue" not in table:
             continue
+        # Concentration is a share of company revenue, so the denominator has to come
+        # from outside the customer file. Without it the exhibit is a request, not a
+        # chart drawn against the wrong base.
+        total = ctx.computation.total_company_revenue()
         for customer_col, revenue_col in (("customer", "arr"), ("customer", "revenue")):
             try:
                 result = ctx.computation.customer_concentration(
-                    table, customer_col, revenue_col)
+                    table, customer_col, revenue_col, total_revenue=total)
             except ComputationError:
                 continue
             return Exhibit(
