@@ -19,7 +19,11 @@ from rich.panel import Panel
 from rich.table import Table
 
 from cdd_agent.agents.analyst import Analyst
-from cdd_agent.agents.base import AgentContext, save_structured_tables
+from cdd_agent.agents.base import (
+    AgentContext,
+    save_financials,
+    save_structured_tables,
+)
 from cdd_agent.agents.intake import IntakeAgent
 from cdd_agent.agents.risk_auditor import RiskAuditor
 from cdd_agent.agents.synthesizer import Synthesizer
@@ -241,6 +245,7 @@ def ingest(engagement: str, data_room: Path) -> None:
     with guarded():
         report, tables = ingest_directory(engagement, data_room, store=store)
     save_structured_tables(store, engagement, tables)
+    save_financials(store, engagement, report.financials)
     # Record the source so a later ingestion, from here or from the interface, can
     # see that it would be blending two data rooms.
     store.put(engagement, Collection.METRICS, "ingestion",

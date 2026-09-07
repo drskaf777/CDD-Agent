@@ -78,3 +78,43 @@ def test_the_layout_covers_the_standard_report_sections():
     numbers = [n for n, _, _, _ in D.LAYOUT]
     assert numbers == [1, 2, 3, 4, 5, 6]
     assert all(title.strip() and question.strip() for _, title, question, _ in D.LAYOUT)
+
+
+def test_a_quarterly_figure_never_lands_on_an_annual_chart():
+    """A filing states both bases in the same voice. "revenue was $228.6 million for
+    the three months ended March 31, 2026" parses exactly like an annual figure, and
+    plotting it as FY2026 understates the year by three quarters while looking normal.
+    """
+    from cdd_agent.synthesis.financials import extract, series_for
+
+    text = ("Total revenue was $838.8 million and $720.4 million in the years ended "
+            "December 31, 2025 and 2024. Total revenue was $228.6 million for the "
+            "three months ended March 31, 2026.")
+    points = extract(text, source_file="10-K.txt", locator="MD&A")
+    periods = {p.period for p in series_for(points, "Revenue")}
+    assert periods == {"FY2025", "FY2024"}
+    assert "FY2026" not in periods, "the quarter must not become a year"
+
+
+def test_figures_are_read_out_of_the_text_not_inferred():
+    from cdd_agent.synthesis.financials import extract, series_for
+
+    text = ("Our total revenue was $838.8 million, $720.4 million and $596.4 million "
+            "in the years ended December 31, 2025, 2024 and 2023, respectively.")
+    pts = series_for(extract(text, source_file="10-K.txt", locator="MD&A"), "Revenue")
+    assert [(p.period, p.value) for p in pts] == [
+        ("FY2023", 596.4), ("FY2024", 720.4), ("FY2025", 838.8)]
+    # Each point carries the sentence it came from, so a reader can check it.
+    assert all("total revenue was" in p.quoted.lower() for p in pts)
+
+
+def test_a_margin_is_never_produced_from_one_half_of_a_ratio():
+    from cdd_agent.synthesis.financials import extract, margin_series
+
+    # Revenue for two years, an earnings figure for only one of them.
+    text = ("Total revenue was $838.8 million and $720.4 million in the years ended "
+            "December 31, 2025 and 2024. Gross profit was $650.0 million in the year "
+            "ended December 31, 2025.")
+    points = extract(text, source_file="10-K.txt", locator="MD&A")
+    margins = margin_series(points, "Gross profit")
+    assert [p for p, _ in margins] == ["FY2025"], "no margin for the year without a numerator"

@@ -30,7 +30,11 @@ from cdd_agent.agents.thesis_architect import ThesisArchitect
 from cdd_agent.config import get_settings
 from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.authorization import AgentRole
-from cdd_agent.agents.base import load_structured_tables
+from cdd_agent.agents.base import (
+    load_financials,
+    load_structured_tables,
+    save_financials,
+)
 from cdd_agent.guardrails.coherence import check_engagement
 from cdd_agent.synthesis.dashboard import build as build_dashboard
 from cdd_agent.synthesis.dashboard import requests_by_key
@@ -334,6 +338,7 @@ def run_ingest(engagement: str, body: IngestBody) -> dict[str, Any]:
         raise HTTPException(409, str(exc)) from exc
     _tables[engagement] = list(tables)
     save_structured_tables(_store, engagement, tables)
+    save_financials(_store, engagement, report.financials)
     _store.put(
         engagement, Collection.METRICS, "ingestion",
         {"summary": report.summary(), "unstructured": report.unstructured,

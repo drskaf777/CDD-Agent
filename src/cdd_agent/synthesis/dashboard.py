@@ -44,7 +44,7 @@ LAYOUT: tuple[tuple[int, str, str, tuple[str, ...]], ...] = (
      ("nps", "concentration", "cohort_retention", "nrr_grr", "purchasing_criteria")),
     (5, "Financial and operational assessment",
      "Do the underlying unit economics hold up?",
-     ("unit_economics", "magic_number", "arr_bridge", "pricing_elasticity", "ps_drag",
+     ("financial_performance", "unit_economics", "magic_number", "arr_bridge", "pricing_elasticity", "ps_drag",
       "seats_consumption", "pipeline_health", "white_space", "guidance_delivery")),
     (6, "Valuation, sensitivities and growth levers",
      "What is it worth, and what has to be true for that to hold?",

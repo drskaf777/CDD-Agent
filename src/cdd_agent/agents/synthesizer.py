@@ -13,7 +13,7 @@ consequences of the data, so writing them by hand would let them drift from it.
 
 from __future__ import annotations
 
-from cdd_agent.agents.base import Agent
+from cdd_agent.agents.base import Agent, load_financials
 from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.guardrails.output_contract import ContractReport, check_deck
 from cdd_agent.knowledge.four_question_test import FOUR_QUESTIONS
@@ -75,6 +75,8 @@ class Synthesizer(Agent):
             public=(self.context.profile.public_market
                     if self.context.profile else PublicMarketContext()),
             access=self.context.profile.access if self.context.profile else None,
+            financials=load_financials(self.context.store,
+                                       self.context.engagement_id),
         )
         self._exhibit_ctx = exhibit_ctx
         self._precomputed = self._load_computed_exhibits()

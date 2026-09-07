@@ -197,6 +197,11 @@ CATALOGUE: tuple[ExhibitSpec, ...] = (
                 "NRR and GRR by cohort for at least eight quarters, defined "
                 "consistently across periods",
                 "evidence"),
+    ExhibitSpec("financial_performance",
+                "Revenue, earnings and margin by year", 6, "bar",
+                "Audited revenue and an earnings measure for at least three "
+                "comparable annual periods, stated on the same basis",
+                "financial_performance"),
     ExhibitSpec("unit_economics", "Unit economics: CAC, LTV and margin", 6, "table",
                 "Customer acquisition cost by channel, lifetime value with its "
                 "assumptions, and gross margin by product line",
@@ -266,6 +271,8 @@ class ExhibitContext:
     # needs a share price and has none is a gap like any other.
     public: PublicMarketContext = field(default_factory=PublicMarketContext)
     access: Optional[AccessConstraints] = None
+    # Figures parsed out of filing prose at ingestion.
+    financials: list = field(default_factory=list)
 
     @property
     def strategic_buyer(self) -> bool:
@@ -774,6 +781,81 @@ def evidence_exhibit(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     )
 
 
+def financial_performance(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """Revenue, earnings and margin by year, read out of the filings.
+
+    The chart the template opens with, and the one a listed target can always
+    support at least in part: revenue is stated in every annual report. Earnings and
+    margin appear only where the company actually reports them - Freshworks, for
+    instance, never uses the word EBITDA - and a missing series is left missing
+    rather than approximated from something adjacent.
+    """
+    from cdd_agent.synthesis.financials import Point, margin_series, series_for
+
+    raw = ctx.financials or []
+    if not raw:
+        return _gap(spec)
+    points = [Point(**p) if isinstance(p, dict) else p for p in raw]
+
+    revenue = series_for(points, "Revenue")
+    if len(revenue) < 2:
+        return _gap(spec, "Fewer than two comparable annual periods were stated.")
+
+    series = [Series(name="Revenue", unit="m",
+                     labels=[p.period for p in revenue],
+                     values=[p.value for p in revenue])]
+    columns = ["Period", "Revenue"]
+    rows = [[p.period, f"{p.value:,.1f}"] for p in revenue]
+
+    # Growth is arithmetic over figures already on the chart, not a new claim.
+    if len(revenue) >= 2:
+        growth_labels, growth_values = [], []
+        for prev, curr in zip(revenue, revenue[1:], strict=False):
+            if prev.value:
+                growth_labels.append(curr.period)
+                growth_values.append((curr.value - prev.value) / prev.value)
+        if growth_values:
+            series.append(Series(name="Growth", unit="%",
+                                 labels=growth_labels, values=growth_values))
+            columns.append("Growth")
+            by_period = dict(zip(growth_labels, growth_values, strict=True))
+            rows = [r + [f"{by_period[r[0]]:.1%}" if r[0] in by_period else "\u2014"]
+                    for r in rows]
+
+    earnings_metric = next(
+        (m for m in ("Non-GAAP operating income", "Operating income / (loss)",
+                     "Gross profit", "Net income / (loss)")
+         if len(series_for(points, m)) >= 2), None)
+    note_missing = ""
+    if earnings_metric:
+        earn = series_for(points, earnings_metric)
+        series.append(Series(name=earnings_metric, unit="m",
+                             labels=[p.period for p in earn],
+                             values=[p.value for p in earn]))
+        margins = margin_series(points, earnings_metric)
+        if margins:
+            series.append(Series(name=f"{earnings_metric} margin", unit="%",
+                                 labels=[p for p, _ in margins],
+                                 values=[v for _, v in margins]))
+    else:
+        note_missing = (" No earnings measure is stated on a comparable annual basis "
+                        "in the material supplied, so the margin line is absent rather "
+                        "than approximated.")
+
+    cited = {(p.source_file, p.locator) for p in revenue}
+    citations = [Citation(source_kind=SourceKind.PUBLIC_FILING, source_file=f,
+                          locator=l) for f, l in sorted(cited)][:6]
+    if not citations:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="bar", status=ExhibitStatus.COMPUTED,
+        columns=columns, rows=rows, series=series, citations=citations,
+        note=("Each figure is parsed verbatim from the filing sentence that states it; "
+              "quarterly figures are excluded so the series is annual throughout."
+              + note_missing),
+    )
+
+
 def _risk_table(ctx: ExhibitContext, spec: ExhibitSpec,
                 categories: tuple[RiskCategory, ...]) -> Exhibit:
     risks = [r for r in ctx.register.ranked() if r.category in categories]
@@ -1026,6 +1108,7 @@ _BUILDERS: dict[str, Callable[[ExhibitContext, ExhibitSpec], Exhibit]] = {
     "influence_rights": influence_rights,
     "completion_conditions": completion_conditions,
     "evidence": evidence_exhibit,
+    "financial_performance": financial_performance,
 }
 
 

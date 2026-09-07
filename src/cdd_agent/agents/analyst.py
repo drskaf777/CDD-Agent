@@ -22,7 +22,7 @@ import datetime as _dt
 from dataclasses import dataclass, field
 from typing import Optional
 
-from cdd_agent.agents.base import Agent, AgentContext
+from cdd_agent.agents.base import Agent, AgentContext, load_financials
 from cdd_agent.guardrails.authorization import AgentRole, AuthorizationError
 from cdd_agent.guardrails.coherence import raise_if_incoherent
 from cdd_agent.knowledge.data_request_catalog import (
@@ -299,6 +299,8 @@ class Analyst(Agent):
             public=(self.context.profile.public_market
                     if self.context.profile else PublicMarketContext()),
             access=self.context.profile.access if self.context.profile else None,
+            financials=load_financials(self.context.store,
+                                       self.context.engagement_id),
         ))
         self.context.store.put(
             self.context.engagement_id, Collection.EXHIBIT, "computed",

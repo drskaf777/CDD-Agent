@@ -33,6 +33,19 @@ def save_structured_tables(store: "StateStore", engagement_id: str, tables, *,
     return len(payload)
 
 
+def save_financials(store: "StateStore", engagement_id: str, points: list,
+                    *, agent: str = "Controller") -> int:
+    """Persist figures parsed out of filing prose so later phases can chart them."""
+    store.put(engagement_id, Collection.STRUCTURED, "financials",
+              {"points": list(points)}, agent=agent)
+    return len(points)
+
+
+def load_financials(store: "StateStore", engagement_id: str) -> list:
+    stored = store.get(engagement_id, Collection.STRUCTURED, "financials") or {}
+    return list(stored.get("points", []))
+
+
 def load_structured_tables(store: "StateStore", engagement_id: str) -> list:
     """Rebuild the parsed tables saved at ingestion."""
     import datetime as _dt

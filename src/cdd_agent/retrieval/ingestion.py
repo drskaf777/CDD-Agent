@@ -84,6 +84,10 @@ class IngestionReport:
     # Where this engagement documents came from. Recorded so a later ingestion can
     # tell that it would be adding a second, different data room.
     data_room: str = ""
+    # Figures read out of filing prose. A listed target publishes its numbers in
+    # sentences rather than spreadsheets, so this is the only way a revenue chart
+    # exists for one - see synthesis/financials.py for why it is not model-driven.
+    financials: list[dict[str, Any]] = field(default_factory=list)
     unstructured: list[dict[str, Any]] = field(default_factory=list)
     structured: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[dict[str, Any]] = field(default_factory=list)
@@ -335,6 +339,11 @@ def ingest_directory(
              "date": date.isoformat() if date else None, "chunks": added,
              "version_group": doc.version_group}
         )
+        from cdd_agent.synthesis.financials import extract as _extract_financials
+
+        for point in _extract_financials(text, source_file=path.name,
+                                         locator=f"{doc_type}, financial discussion"):
+            report.financials.append(vars(point))
         if date is None:
             report.undated.append(path.name)
 
