@@ -345,9 +345,11 @@ const S = { eng:null, snap:null, tab:"overview", busy:null, traceFilter:"all",
 const $ = (id) => document.getElementById(id);
 
 const TABS = [
-  ["overview","Overview"], ["dashboard","Executive dashboard"],
-  ["hypotheses","Hypotheses"], ["requests","Data request"],
-  ["evidence","Evidence"], ["risks","Risks & gaps"], ["draft","Draft"], ["trace","Trace"],
+  ["overview","Overview"], ["hypotheses","Hypotheses"], ["requests","Data request"],
+  ["evidence","Evidence"], ["risks","Risks & gaps"], ["draft","Draft"],
+  // The dashboard reads out of the draft, so it sits after it: the order matches
+  // the direction the evidence actually flows.
+  ["dashboard","Executive Dashboard"], ["trace","Trace"],
 ];
 const TAG_CLASS = {
   "Confirmed":"confirmed", "Partially Confirmed":"partial",
@@ -1051,6 +1053,61 @@ function renderChart(x){
   const y = v => T + ih - ((v - min) / span) * ih;
   const fmt = v => (x.series[0].unit === "%" ? (v*100).toFixed(0) + "%"
                     : Math.abs(v) >= 1000 ? (v/1000).toFixed(0) + "k" : String(Math.round(v)));
+  // Combo: absolutes as grouped bars on the left scale, rates as lines on their own
+  // right scale. Sharing one axis would draw a 16% growth rate as a bar of height
+  // zero beside revenue of 838 - technically plotted, and unreadable.
+  if(kind === "combo"){
+    const bars  = series.filter(s => (s.kind || "bar") === "bar");
+    const lines = series.filter(s => s.kind === "line");
+    const labels = (bars[0] || series[0]).labels || [];
+    const bv = bars.flatMap(s => s.values);
+    const bmax = Math.max(...bv, 0), bmin = Math.min(...bv, 0);
+    const bspan = (bmax - bmin) || 1;
+    const by = v => T + ih - ((v - bmin) / bspan) * ih;
+    const lv = lines.flatMap(s => s.values);
+    const lmax = lv.length ? Math.max(...lv) : 1, lmin = lv.length ? Math.min(...lv, 0) : 0;
+    const lspan = (lmax - lmin) || 1;
+    const ly = v => T + ih - ((v - lmin) / lspan) * ih;
+
+    let c = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(x.title) + '">';
+    // Zero line, drawn on the bar scale because that is where sign matters.
+    c += '<line class="grid" x1="' + L + '" y1="' + by(0) + '" x2="' + (W-R) + '" y2="' + by(0) + '"/>';
+    c += '<text class="axis" x="4" y="' + (by(bmax)+4) + '">' + esc(Math.round(bmax)) + '</text>';
+    if(bmin < 0) c += '<text class="axis" x="4" y="' + (by(bmin)) + '">' + esc(Math.round(bmin)) + '</text>';
+
+    const groups = labels.length || 1, gw = iw / groups;
+    const bw = Math.max(4, (gw * 0.6) / Math.max(bars.length, 1));
+    labels.forEach((lb, i) => {
+      bars.forEach((s, si) => {
+        const v = s.values[i]; if(v == null) return;
+        const cx = L + i*gw + gw*0.2 + si*bw;
+        const top = Math.min(by(v), by(0)), h = Math.max(1, Math.abs(by(v) - by(0)));
+        c += '<rect class="bar" x="' + cx + '" y="' + top + '" width="' + bw + '" height="' + h +
+             '" fill="' + colours[si % colours.length] + '"/>';
+      });
+      c += '<text class="axis" text-anchor="middle" x="' + (L + i*gw + gw/2) + '" y="' + (H-10) + '">' + esc(lb) + '</text>';
+    });
+
+    lines.forEach((s, si) => {
+      // A line series can be shorter than the bars (growth has no first year), so
+      // it is positioned by its own label against the shared category order.
+      const pts = (s.labels || []).map((lb, j) => {
+        const i = labels.indexOf(lb);
+        if(i < 0 || s.values[j] == null) return null;
+        return (L + i*gw + gw/2) + "," + ly(s.values[j]);
+      }).filter(Boolean);
+      if(pts.length < 2) return;
+      c += '<polyline class="ln" points="' + pts.join(" ") + '" stroke="' +
+           colours[(bars.length + si) % colours.length] + '"/>';
+    });
+    if(lv.length) c += '<text class="axis" text-anchor="end" x="' + (W-2) + '" y="' +
+      (ly(lmax)+4) + '">' + esc((lmax*100).toFixed(0) + "%") + '</text>';
+    c += '</svg>';
+    c += '<div class="legend">' + series.map((s, si) =>
+      '<span><i style="background:' + colours[si % colours.length] + '"></i>' + esc(s.name) +
+      (s.kind === "line" ? " (right)" : "") + '</span>').join("") + '</div>';
+    return c;
+  }
   let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(x.title) + '">';
   // zero line / baseline
   g += '<line class="grid" x1="' + L + '" y1="' + y(Math.max(min,0)) + '" x2="' + (W-R) + '" y2="' + y(Math.max(min,0)) + '"/>';

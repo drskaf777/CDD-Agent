@@ -801,7 +801,7 @@ def financial_performance(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     if len(revenue) < 2:
         return _gap(spec, "Fewer than two comparable annual periods were stated.")
 
-    series = [Series(name="Revenue", unit="m",
+    series = [Series(name="Revenue", unit="m", kind="bar",
                      labels=[p.period for p in revenue],
                      values=[p.value for p in revenue])]
     columns = ["Period", "Revenue"]
@@ -815,28 +815,38 @@ def financial_performance(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
                 growth_labels.append(curr.period)
                 growth_values.append((curr.value - prev.value) / prev.value)
         if growth_values:
-            series.append(Series(name="Growth", unit="%",
+            series.append(Series(name="Revenue growth", unit="%", kind="line",
                                  labels=growth_labels, values=growth_values))
             columns.append("Growth")
             by_period = dict(zip(growth_labels, growth_values, strict=True))
             rows = [r + [f"{by_period[r[0]]:.1%}" if r[0] in by_period else "\u2014"]
                     for r in rows]
 
+    # Net income first: it is the measure the template charts beside revenue, and
+    # the one a reader expects to see. The others stand in only where it is absent.
     earnings_metric = next(
-        (m for m in ("Non-GAAP operating income", "Operating income / (loss)",
-                     "Gross profit", "Net income / (loss)")
+        (m for m in ("Net income / (loss)", "Non-GAAP operating income",
+                     "Operating income / (loss)", "Gross profit")
          if len(series_for(points, m)) >= 2), None)
     note_missing = ""
     if earnings_metric:
         earn = series_for(points, earnings_metric)
-        series.append(Series(name=earnings_metric, unit="m",
+        series.append(Series(name=earnings_metric, unit="m", kind="bar",
                              labels=[p.period for p in earn],
                              values=[p.value for p in earn]))
+        columns.append(earnings_metric)
+        by_earn = {p.period: p.value for p in earn}
+        rows = [r + [f"{by_earn[r[0]]:,.1f}" if r[0] in by_earn else "—"]
+                for r in rows]
         margins = margin_series(points, earnings_metric)
         if margins:
-            series.append(Series(name=f"{earnings_metric} margin", unit="%",
+            series.append(Series(name="Margin", unit="%", kind="line",
                                  labels=[p for p, _ in margins],
                                  values=[v for _, v in margins]))
+            by_margin = dict(margins)
+            columns.append("Margin")
+            rows = [r + [f"{by_margin[r[0]]:.1%}" if r[0] in by_margin else "—"]
+                    for r in rows]
     else:
         note_missing = (" No earnings measure is stated on a comparable annual basis "
                         "in the material supplied, so the margin line is absent rather "
@@ -848,7 +858,7 @@ def financial_performance(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
     if not citations:
         return _gap(spec)
     return Exhibit(
-        title=spec.title, kind="bar", status=ExhibitStatus.COMPUTED,
+        title=spec.title, kind="combo", status=ExhibitStatus.COMPUTED,
         columns=columns, rows=rows, series=series, citations=citations,
         note=("Each figure is parsed verbatim from the filing sentence that states it; "
               "quarterly figures are excluded so the series is annual throughout."

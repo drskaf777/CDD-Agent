@@ -33,7 +33,7 @@ METRICS: tuple[tuple[str, tuple[str, ...]], ...] = (
                                    "non-gaap operating income")),
     ("Operating income / (loss)", ("loss from operations", "income from operations")),
     ("Free cash flow", ("free cash flow",)),
-    ("Net income / (loss)", ("net loss was", "net income was")),
+    ("Net income / (loss)", ("net loss", "net income", "net losses")),
 )
 
 
@@ -96,6 +96,36 @@ def _sentences(text: str) -> list[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[A-Z(])", text) if s.strip()]
 
 
+# "net loss of $192.0 million" and "net income of $183.7 million" are the same
+# sentence shape with opposite signs, and a loss charted as a positive bar is worse
+# than no bar at all - it inverts the trend it is supposed to show. So the sign is
+# bound to the word, not inferred from context, and the word and the figure have to
+# appear in the same phrase.
+_SIGNED = re.compile(
+    r"net\s+(income|loss(?:es)?)\s+(?:of\s+)?(\$\s?\d[\d,]*(?:\.\d+)?\s*"
+    r"(?:million|billion|bn|m\b)?)", re.I)
+
+
+def _signed_points(sentence: str, source_file: str, locator: str) -> list["Point"]:
+    """Net income or loss, with the sign carried from the word that states it."""
+    years = re.findall(_YEAR, sentence)
+    matches = _SIGNED.findall(sentence)
+    # Only bind when there is exactly one figure and one period in the sentence.
+    # Anything more tangled ("net income of X and net losses of Y and Z in 2025,
+    # 2024 and 2023") is left alone rather than paired by guesswork.
+    if len(matches) != 1 or len(years) != 1:
+        return []
+    word, raw = matches[0]
+    amount = _to_millions(raw)
+    if amount is None:
+        return []
+    if word.lower().startswith("loss"):
+        amount = -abs(amount)
+    return [Point(metric="Net income / (loss)", period=f"FY{years[0]}", value=amount,
+                  unit="m", quoted=" ".join(sentence.split())[:300],
+                  source_file=source_file, locator=locator)]
+
+
 def extract(text: str, *, source_file: str, locator: str) -> list[Point]:
     """Every figure this text states plainly enough to plot."""
     points: list[Point] = []
@@ -104,6 +134,15 @@ def extract(text: str, *, source_file: str, locator: str) -> list[Point]:
         low = sentence.lower()
         metric = next((name for name, cues in METRICS if any(c in low for c in cues)), None)
         if metric is None:
+            continue
+        if metric == "Net income / (loss)":
+            if _basis(sentence) != "annual":
+                continue
+            for point in _signed_points(sentence, source_file, locator):
+                key = (point.metric, point.period)
+                if key not in seen:
+                    seen.add(key)
+                    points.append(point)
             continue
         basis = _basis(sentence)
         if basis != "annual":

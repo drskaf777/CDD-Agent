@@ -56,6 +56,10 @@ class Series(BaseModel):
     labels: list[str] = Field(default_factory=list)
     values: list[float] = Field(default_factory=list)
     unit: str = ""
+    # "bar" or "line". A rate plotted as a bar beside an absolute is invisible -
+    # 0.16 against 838 - so how a series should be drawn travels with the data
+    # rather than being guessed at render time.
+    kind: str = ""
 
     @model_validator(mode="after")
     def _aligned(self) -> "Series":

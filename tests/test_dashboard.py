@@ -118,3 +118,30 @@ def test_a_margin_is_never_produced_from_one_half_of_a_ratio():
     points = extract(text, source_file="10-K.txt", locator="MD&A")
     margins = margin_series(points, "Gross profit")
     assert [p for p, _ in margins] == ["FY2025"], "no margin for the year without a numerator"
+
+
+def test_a_loss_is_charted_as_negative():
+    """"net loss of $192.0 million" and "net income of $183.7 million" are the same
+    sentence shape with opposite signs. A loss drawn as a positive bar inverts the
+    trend it exists to show."""
+    from cdd_agent.synthesis.financials import extract, series_for
+
+    text = ("Our results for the year ended December 31, 2021 reflects our net loss "
+            "of $192.0 million, adjusted for non-cash items. "
+            "Our results for the year ended December 31, 2025 reflects our net income "
+            "of $183.7 million, adjusted for non-cash items.")
+    pts = series_for(extract(text, source_file="10-K.txt", locator="MD&A"),
+                     "Net income / (loss)")
+    assert [(p.period, p.value) for p in pts] == [("FY2021", -192.0), ("FY2025", 183.7)]
+
+
+def test_rates_and_absolutes_are_drawn_differently():
+    """A 16% growth rate plotted as a bar beside revenue of 838 is a bar of height
+    zero. The shape has to travel with the series, not be guessed at render time."""
+    from cdd_agent.schemas.deck import Series
+
+    revenue = Series(name="Revenue", unit="m", kind="bar",
+                     labels=["FY2024", "FY2025"], values=[720.4, 838.8])
+    growth = Series(name="Revenue growth", unit="%", kind="line",
+                    labels=["FY2025"], values=[0.164])
+    assert revenue.kind == "bar" and growth.kind == "line"
