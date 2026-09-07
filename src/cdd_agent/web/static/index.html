@@ -345,7 +345,8 @@ const S = { eng:null, snap:null, tab:"overview", busy:null, traceFilter:"all",
 const $ = (id) => document.getElementById(id);
 
 const TABS = [
-  ["overview","Overview"], ["hypotheses","Hypotheses"], ["requests","Data request"],
+  ["overview","Overview"], ["dashboard","Executive dashboard"],
+  ["hypotheses","Hypotheses"], ["requests","Data request"],
   ["evidence","Evidence"], ["risks","Risks & gaps"], ["draft","Draft"], ["trace","Trace"],
 ];
 const TAG_CLASS = {
@@ -617,6 +618,7 @@ function renderTabs(){
     requests: s && s.checklist ? s.checklist.items.length : 0,
     evidence: s ? s.evidence.items.length : 0,
     risks: s ? s.register.risks.length + s.register.gaps.length : 0,
+    dashboard: s && s.dashboard ? s.dashboard.shown : 0,
     draft: s && s.deck ? s.deck.slides.length : 0,
     trace: s ? s.trace.length + s.audit.length : 0,
   };
@@ -642,7 +644,8 @@ function renderPanel(){
     return;
   }
   if(!S.snap){ p.innerHTML = '<div class="empty"><strong>No engagement loaded</strong>Create one above, then load the demo profile.</div>'; return; }
-  const fns = {overview:viewOverview, hypotheses:viewHypotheses, requests:viewRequests,
+  const fns = {overview:viewOverview, dashboard:viewDashboard,
+               hypotheses:viewHypotheses, requests:viewRequests,
                evidence:viewEvidence, risks:viewRisks, draft:viewDraft, trace:viewTrace};
   p.innerHTML = (fns[S.tab] || viewOverview)();
   if(S.tab === "hypotheses") wireBranchButtons();
@@ -650,6 +653,93 @@ function renderPanel(){
 }
 
 /* ------------------------------------------------------------------ overview */
+function tagClass(t){
+  // Maps a four-way confidence tag onto the palette already used for evidence.
+  const k = String(t || "").toLowerCase();
+  if(k.startsWith("confirmed")) return "confirmed";
+  if(k.startsWith("partially")) return "partial";
+  if(k.startsWith("contradicted")) return "contradicted";
+  return "nodata";
+}
+
+function viewDashboard(){
+  const s = S.snap, d = s.dashboard;
+  if(!d || !d.sections || !d.sections.length){
+    return '<div class="empty"><strong>No dashboard yet</strong>' +
+           'Run synthesis - the dashboard is assembled from the draft, so it appears once a draft exists.</div>';
+  }
+  let html = incoherenceBanner();
+
+  // 1. The recommendation, verbatim from the draft. The dashboard never writes its own.
+  html += '<div class="card rise" style="margin-bottom:16px"><div class="card-head">' +
+    '<h3>So what</h3><span class="pill neutral">from the draft, Section 1</span></div>' +
+    '<p style="margin:0;font-size:17px;line-height:1.45">' + esc(d.headline || "No headline yet.") + '</p></div>';
+
+  html += '<div class="stats" style="margin-bottom:16px">' +
+    stat("Exhibits shown", d.shown, "data and a citation") +
+    stat("Withheld", d.withheld, "logged as data requests") +
+    stat("Groundedness", d.groundedness==null ? "\u2014" : pct(d.groundedness), "cited assertive claims") +
+    stat("Thesis pillars", (d.pillars||[]).length, "Tier-1 hypotheses") +
+    '</div>';
+
+  html += '<div class="grid-2" style="margin-bottom:16px">';
+  // 2. Pillars, each carrying how well it actually stood up.
+  html += card("Investment thesis pillars",
+    (d.pillars||[]).length
+      ? '<div class="tablewrap"><table><thead><tr><th>ID</th><th>Pillar</th><th>Rating</th><th>Evidence</th></tr></thead><tbody>' +
+        d.pillars.map(p =>
+          '<tr><td class="mono">' + esc(p.id) + '</td><td>' + esc(p.statement) + '</td>' +
+          '<td><span class="pill ' + tagClass(p.rating) + '">' + esc(p.rating) + '</span></td>' +
+          '<td class="mono">' + p.evidence_count + ' item(s)' +
+          (p.management_only ? ' <span class="pill nodata">mgmt only</span>'
+                             : ' \u00b7 ' + p.independent + ' independent') + '</td></tr>').join("") +
+        '</tbody></table></div>'
+      : '<p class="muted" style="margin:0">No hypothesis tree yet.</p>');
+
+  // 3. Red flags, straight off the ranked register so they cannot disagree with it.
+  html += card("Key red flags",
+    (d.red_flags||[]).length
+      ? d.red_flags.map(r =>
+          '<div class="tr-row"><span class="faint mono">' + esc(r.id) + ' \u00b7 ' + r.score + '</span>' +
+          '<span>' + esc(r.description) +
+          (r.management_data_only ? ' <span class="pill nodata">mgmt data only</span>' : '') +
+          '<span class="src">' + esc(r.category) + '</span></span></div>').join("")
+      : '<p class="muted" style="margin:0">No risks logged.</p>');
+  html += '</div>';
+
+  if((d.upside||[]).length){
+    html += card("Value-creation upside",
+      '<p class="muted" style="margin:0 0 8px;font-size:13px">Read from the growth-levers exhibit, so every line is cited like any other finding.</p>' +
+      d.upside.map(u => '<div class="tr-row"><span class="faint">\u2192</span><span>' + esc(u) + '</span></div>').join(""));
+    html += '<div style="height:16px"></div>';
+  }
+
+  // 4. The six sections, each showing what survived and naming what did not.
+  d.sections.forEach(sec => {
+    let body = '<p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(sec.question) + '</p>';
+    if(sec.exhibits.length){
+      body += sec.exhibits.map(renderExhibit).join("");
+    } else {
+      body += '<p class="muted" style="margin:0 0 10px"><em>Nothing in this section is supported by cited data yet.</em></p>';
+    }
+    if(sec.withheld.length){
+      body += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule)">' +
+        '<div class="faint mono" style="font-size:11px;letter-spacing:.06em;margin-bottom:6px">WITHHELD \u2014 ' +
+        sec.withheld.length + ' EXHIBIT(S) AWAITING DATA</div>' +
+        sec.withheld.map(w => '<div class="tr-row"><span class="faint">\u25cb</span><span>' + esc(w) + '</span></div>').join("") +
+        '</div>';
+    }
+    html += card(sec.number + ". " + sec.title, body);
+    html += '<div style="height:16px"></div>';
+  });
+
+  html += '<p class="muted" style="font-size:12.5px;margin:4px 0 0">' +
+    'Every exhibit above appears in the draft as well. An exhibit is shown only where it has ' +
+    'data and a citation; anything else is withheld and carried as a dated request, so this page ' +
+    'cannot show more than the evidence supports.</p>';
+  return html;
+}
+
 function viewOverview(){
   const s = S.snap, prof = s.profile;
   let html = incoherenceBanner();

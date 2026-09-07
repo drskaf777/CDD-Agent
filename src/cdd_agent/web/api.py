@@ -32,6 +32,8 @@ from cdd_agent.evaluation.metrics import evaluate
 from cdd_agent.guardrails.authorization import AgentRole
 from cdd_agent.agents.base import load_structured_tables
 from cdd_agent.guardrails.coherence import check_engagement
+from cdd_agent.synthesis.dashboard import build as build_dashboard
+from cdd_agent.synthesis.dashboard import requests_by_key
 from cdd_agent.guardrails.escalation import (
     check_phase1,
     check_tier1_evidence,
@@ -216,6 +218,9 @@ def snapshot(engagement: str) -> dict[str, Any]:
         "evidence": _evidence_view(matrix),
         "register": _register_view(register, applicable),
         "deck": deck.model_dump(mode="json") if deck else None,
+        "dashboard": build_dashboard(
+            engagement, deck, tree, matrix, register, requests_by_key()
+        ).to_dict(),
         "groundedness": deck.groundedness() if deck else None,
         "escalations": escalations,
         "escalation_history": stored,

@@ -159,8 +159,77 @@ CATALOGUE: tuple[ExhibitSpec, ...] = (
                 "completion_conditions", public_only=True,
                 structures=(TransactionStructure.PUBLIC_CONTROL_STAKE.value,
                             TransactionStructure.TAKE_PRIVATE.value)),
+    # --- Added for the Executive Dashboard. Each states the request that would
+    # --- build it, so an absent one appears as an outstanding ask, not a blank.
+    ExhibitSpec("cyclicality", "Cyclicality and downturn resilience", 2, "table",
+                "Revenue by quarter through the last downturn, plus any stated "
+                "sensitivity of demand to customer budget cycles",
+                "evidence"),
+    ExhibitSpec("segmented_tam", "Segmented TAM by customer size", 2, "bar",
+                "Addressable market split by SMB, mid-market and enterprise, with "
+                "the sizing methodology stated",
+                "evidence"),
+    ExhibitSpec("legacy_migration", "Remaining on-premise migration pool", 2, "table",
+                "Estimated installed base still on-premise and the observed rate of "
+                "migration to cloud",
+                "evidence"),
+    ExhibitSpec("moat", "Competitor moat evaluation", 3, "table",
+                "Named structural advantages with evidence: proprietary technology, "
+                "scale, brand, or contractual lock-in",
+                "evidence"),
+    ExhibitSpec("switching_cost", "Switching-cost and lock-in index", 3, "table",
+                "Implementation effort, custom integration counts, and any contractual "
+                "or data-migration friction at renewal",
+                "evidence"),
+    ExhibitSpec("rd_efficiency", "R&D efficiency benchmarking", 3, "table",
+                "R&D spend as a share of revenue and release cadence, with the peer "
+                "set used for comparison",
+                "evidence"),
+    ExhibitSpec("ai_displacement", "AI and open-source displacement risk", 3, "table",
+                "Evidence on generative-AI or open-source substitution in the served "
+                "segment, ideally from independent sources",
+                "evidence"),
+    ExhibitSpec("purchasing_criteria", "Purchasing-criteria rankings", 4, "bar",
+                "Buyer survey or interview set ranking selection criteria, with "
+                "sample size and independence disclosed",
+                "evidence"),
+    ExhibitSpec("nrr_grr", "Net and gross revenue retention", 4, "line",
+                "NRR and GRR by cohort for at least eight quarters, defined "
+                "consistently across periods",
+                "evidence"),
+    ExhibitSpec("unit_economics", "Unit economics: CAC, LTV and margin", 6, "table",
+                "Customer acquisition cost by channel, lifetime value with its "
+                "assumptions, and gross margin by product line",
+                "evidence"),
+    ExhibitSpec("magic_number", "Magic number and CAC payback", 6, "bar",
+                "Sales and marketing spend by quarter against net new ARR, so payback "
+                "can be computed rather than asserted",
+                "evidence"),
+    ExhibitSpec("ps_drag", "Professional-services revenue drag", 6, "table",
+                "Revenue and gross margin split between software subscription and "
+                "professional services",
+                "evidence"),
+    ExhibitSpec("seats_consumption", "Seat versus consumption pricing exposure", 6, "table",
+                "Contract mix by pricing model, and observed seat-count movement at "
+                "renewal",
+                "evidence"),
+    ExhibitSpec("pipeline_health", "Sales-pipeline health", 6, "table",
+                "CRM pipeline export with stage conversion rates, sales-cycle length "
+                "and win rates by segment",
+                "evidence"),
+    ExhibitSpec("white_space", "White-space cross-sell and upsell", 6, "table",
+                "Product attach rates across the installed base, and the accounts "
+                "holding only one product line",
+                "evidence"),
+    ExhibitSpec("rule_of_40", "Rule of 40 and efficiency at a glance", 6, "table",
+                "Growth rate and margin on a consistent basis for the last eight "
+                "quarters",
+                "evidence"),
+    ExhibitSpec("exit_hypotheses", "Exit hypotheses and multiple expansion", 7, "table",
+                "Precedent transactions in the sub-sector with multiples paid, and "
+                "the named strategic buyer set",
+                "evidence"),
 )
-
 def specs_for_section(section: int,
                       shape: "DealShape | None" = None) -> list[ExhibitSpec]:
     return [s for s in CATALOGUE if s.section == section and s.applies_to(shape)]
@@ -638,6 +707,73 @@ def _target_citations(items, limit: int = 6) -> list:
     ][:limit]
 
 
+# Evidence-only exhibits: the same shape with different vocabulary, so they live in
+# a table rather than fifteen near-identical functions. Each names the terms that
+# make a sentence relevant and the shape of figure its title promises - an exhibit
+# headed "unit economics" that shows a sentence with no number in it is asserting,
+# by placement, that the economics were quantified.
+_EVIDENCE_SPECS: dict[str, tuple] = {
+    "cyclicality": (("recession", "downturn", "cyclical", "discretionary spend",
+                     "macroeconomic", "budget scrutiny"), None, "Resilience observation"),
+    "moat": (("moat", "barrier to entry", "switching cost", "proprietary", "network effect",
+              "scale advantage", "lock-in"), None, "Structural advantage"),
+    "purchasing_criteria": (("purchasing criteria", "selection criteria", "buying criteria",
+                             "evaluate vendors", "decision criteria", "why customers choose"),
+                            None, "Stated buying criterion"),
+    "unit_economics": (("cac", "customer acquisition cost", "ltv", "lifetime value",
+                        "gross margin", "contribution margin", "payback"), FIGURE,
+                       "Unit-economics figure"),
+    "pipeline_health": (("pipeline", "conversion rate", "sales cycle", "win rate",
+                         "quota attainment", "bookings"), FIGURE, "Pipeline measure"),
+    "exit_hypotheses": (("exit", "strategic buyer", "multiple expansion", "sponsor-to-sponsor",
+                         "ipo", "trade sale"), None, "Exit consideration"),
+    # --- SaaS-tailored ---
+    "rule_of_40": (("rule of 40", "growth plus margin", "efficiency score"), PERCENT,
+                   "Rule-of-40 statement"),
+    "nrr_grr": (("net revenue retention", "gross revenue retention", "nrr", "grr",
+                 "dollar retention", "logo retention"), PERCENT, "Retention figure"),
+    "magic_number": (("magic number", "cac payback", "payback period", "sales efficiency"),
+                     FIGURE, "Efficiency measure"),
+    "ps_drag": (("professional services", "services revenue", "implementation revenue",
+                 "consulting revenue"), FIGURE, "Services-mix figure"),
+    "seats_consumption": (("seat", "per-seat", "consumption", "usage-based", "headcount-based",
+                           "seat count"), None, "Pricing-model exposure"),
+    "white_space": (("cross-sell", "upsell", "attach rate", "white space", "expansion into",
+                     "installed base"), None, "Expansion opportunity"),
+    "switching_cost": (("switching cost", "migration", "integration", "data lock-in",
+                        "implementation", "rip and replace"), None, "Friction observation"),
+    "rd_efficiency": (("research and development", "r&d", "engineering spend",
+                       "release velocity", "product velocity"), FIGURE, "R&D measure"),
+    "legacy_migration": (("on-premise", "on premises", "legacy", "migration to cloud",
+                          "cloud migration", "modernisation", "modernization"), None,
+                         "Migration-pool observation"),
+    "segmented_tam": (("smb", "mid-market", "midmarket", "enterprise segment",
+                       "segment of the market", "by company size"), MONEY,
+                      "Segment sizing statement"),
+    "ai_displacement": (("generative ai", "ai-native", "open-source", "open source",
+                         "displacement", "commoditis", "commoditiz"), None,
+                        "Displacement signal"),
+}
+
+
+def evidence_exhibit(ctx: ExhibitContext, spec: ExhibitSpec) -> Exhibit:
+    """Any exhibit whose content is quoted sentences rather than arithmetic."""
+    terms, figure, column = _EVIDENCE_SPECS[spec.key]
+    pairs = ctx.statements(*terms, figure=figure, limit=5)
+    if not pairs:
+        return _gap(spec)
+    citations = _citations_of(pairs)
+    if not citations:
+        return _gap(spec)
+    return Exhibit(
+        title=spec.title, kind="table", status=ExhibitStatus.EVIDENCED,
+        columns=[column, "Sourcing", "Source"],
+        rows=[[s, _sourcing(i), _cite(i)] for i, s in pairs],
+        citations=citations,
+        note=spec.requires,
+    )
+
+
 def _risk_table(ctx: ExhibitContext, spec: ExhibitSpec,
                 categories: tuple[RiskCategory, ...]) -> Exhibit:
     risks = [r for r in ctx.register.ranked() if r.category in categories]
@@ -889,6 +1025,7 @@ _BUILDERS: dict[str, Callable[[ExhibitContext, ExhibitSpec], Exhibit]] = {
     "guidance_delivery": guidance_delivery,
     "influence_rights": influence_rights,
     "completion_conditions": completion_conditions,
+    "evidence": evidence_exhibit,
 }
 
 
